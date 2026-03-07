@@ -276,6 +276,76 @@ return <span>Loading...</span>
 
 ---
 
+## Scenario: Long Content Auto-Collapse (UI-only contract)
+
+### 1. Scope / Trigger
+- Trigger: Message/tool/CLI content can exceed readable size and degrade chat usability.
+- Scope: Frontend rendering layer only (`web/src/components/*`), no reducer/protocol/API changes.
+
+### 2. Signatures
+
+```typescript
+// web/src/lib/contentLimits.ts
+export const LONG_CONTENT_COLLAPSE_THRESHOLD = 1000
+
+export function shouldAutoCollapseContent(
+  text: string,
+  threshold: number = LONG_CONTENT_COLLAPSE_THRESHOLD
+): boolean
+```
+
+```typescript
+// web/src/components/LongContentCollapse.tsx
+export function LongContentCollapse(props: {
+  text: string
+  children: ReactNode
+  className?: string
+  threshold?: number
+}): JSX.Element
+```
+
+### 3. Contracts
+- Collapse rule: `text.length > threshold` => collapsed by default.
+- Boundary rule: `text.length === threshold` => do not collapse.
+- Interaction contract:
+  - collapsed state: `aria-expanded="false"`
+  - expanded state: `aria-expanded="true"`
+- i18n contract (must not hardcode user-visible labels):
+  - `content.collapse.openWithHidden`
+  - `content.collapse.close`
+
+### 4. Validation & Error Matrix
+- Missing i18n key -> fallback to English key resolution path in `I18nProvider`.
+- `threshold` not provided -> use `LONG_CONTENT_COLLAPSE_THRESHOLD` default.
+- Empty text (`""`) -> never collapsed.
+
+### 5. Good / Base / Bad Cases
+- Good: long text in `CodeBlock`, `MarkdownRenderer`, `CliOutputBlock` collapses consistently with same toggle behavior.
+- Base: text exactly 1000 chars renders without collapse toggle.
+- Bad: hardcoded labels in component or per-view custom threshold causing inconsistent UX.
+
+### 6. Tests Required
+- Component tests must cover:
+  1. boundary case (`=== threshold`) no toggle button,
+  2. over-threshold case (`> threshold`) default collapsed,
+  3. click toggle changes `aria-expanded` false -> true.
+- For i18n-sensitive assertions, read label from locale keys instead of duplicating hardcoded literals.
+
+### 7. Wrong vs Correct
+
+```tsx
+// Wrong: hardcoded label (breaks i18n consistency)
+<span>展开长消息（已隐藏部分）</span>
+```
+
+```tsx
+// Correct: translated label
+const { t } = useTranslation()
+<span>{t('content.collapse.openWithHidden')}</span>
+```
+
+---
+
 ## Local Sub-Components
 
 For sub-components only used within one file, define them in the same file above the main export:
