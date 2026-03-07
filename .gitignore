@@ -44,3 +44,7 @@ cli/npm/main/
 *.bun-build
 *.exe
 .tmp
+
+# Trellis local task workspace
+.trellis/task/
+.trellis/tasks/
