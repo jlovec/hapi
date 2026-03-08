@@ -9,6 +9,8 @@ import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { queryKeys } from '@/lib/query-keys'
 import { langAlias, useShikiHighlighter } from '@/lib/shiki'
+import { useTranslation } from '@/lib/use-translation'
+import { getImageMimeTypeFromPath, buildImageDataUrl } from '@/lib/imagePreview'
 import { decodeBase64 } from '@/lib/utils'
 
 const MAX_COPYABLE_FILE_BYTES = 1_000_000
@@ -88,6 +90,29 @@ function FileContentSkeleton() {
     )
 }
 
+function ImagePreview(props: { src: string; alt: string; fallbackMessage: string }) {
+    const [hasError, setHasError] = useState(false)
+
+    if (hasError) {
+        return (
+            <div className="text-sm text-[var(--app-hint)]">
+                {props.fallbackMessage}
+            </div>
+        )
+    }
+
+    return (
+        <div className="flex items-center justify-center rounded-md border border-[var(--app-border)] bg-[var(--app-code-bg)] p-4">
+            <img
+                src={props.src}
+                alt={props.alt}
+                onError={() => setHasError(true)}
+                className="max-h-[70vh] max-w-full object-contain"
+            />
+        </div>
+    )
+}
+
 function resolveLanguage(path: string): string | undefined {
     const parts = path.split('.')
     if (parts.length <= 1) return undefined
@@ -118,6 +143,7 @@ function extractCommandError(result: GitCommandResponse | undefined): string | n
 
 export default function FilePage() {
     const { api } = useAppContext()
+    const { t } = useTranslation()
     const { copied: pathCopied, copy: copyPath } = useCopyToClipboard()
     const { copied: contentCopied, copy: copyContent } = useCopyToClipboard()
     const goBack = useAppGoBack()
@@ -164,6 +190,13 @@ export default function FilePage() {
     const binaryFile = fileContentResult?.success
         ? !decodedContentResult.ok || isBinaryContent(decodedContent)
         : false
+
+    const imageMimeType = useMemo(() => getImageMimeTypeFromPath(filePath), [filePath])
+    const hasImagePreviewSource = Boolean(imageMimeType && fileContentResult?.success && fileContentResult.content)
+    const imageDataUrl = useMemo(() => {
+        if (!hasImagePreviewSource || !imageMimeType || !fileContentResult?.success || !fileContentResult.content) return null
+        return buildImageDataUrl(fileContentResult.content, imageMimeType)
+    }, [hasImagePreviewSource, imageMimeType, fileContentResult])
 
     const language = useMemo(() => resolveLanguage(filePath), [filePath])
     const highlighted = useShikiHighlighter(decodedContent, language)
@@ -262,16 +295,22 @@ export default function FilePage() {
                         <FileContentSkeleton />
                     ) : fileError ? (
                         <div className="text-sm text-[var(--app-hint)]">{fileError}</div>
-                    ) : binaryFile ? (
+                    ) : binaryFile && !hasImagePreviewSource ? (
                         <div className="text-sm text-[var(--app-hint)]">
-                            This looks like a binary file. It cannot be displayed.
+                            {t('file.binary')}
                         </div>
                     ) : displayMode === 'diff' && diffContent ? (
                         <DiffDisplay diffContent={diffContent} />
                     ) : displayMode === 'diff' && diffError ? (
                         <div className="text-sm text-[var(--app-hint)]">{diffError}</div>
                     ) : displayMode === 'file' ? (
-                        decodedContent ? (
+                        hasImagePreviewSource && imageDataUrl ? (
+                            <ImagePreview
+                                src={imageDataUrl}
+                                alt={t('file.imageAlt', { name: fileName })}
+                                fallbackMessage={t('file.imagePreviewFailed')}
+                            />
+                        ) : decodedContent ? (
                             <div className="relative">
                                 {canCopyContent ? (
                                     <button
