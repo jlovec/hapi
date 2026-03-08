@@ -14,8 +14,7 @@ React Mini App / PWA for monitoring and controlling hapi sessions.
 
 ## Runtime behavior
 
-- When opened inside Telegram, auth uses Telegram WebApp init data.
-- When opened in a normal browser, you can log in with `CLI_API_TOKEN:<namespace>` (or `CLI_API_TOKEN` for the default namespace).
+- When opened in a browser, you can log in with `CLI_API_TOKEN:<namespace>` (or `CLI_API_TOKEN` for the default namespace).
 - The login screen includes a top-right hub picker; if unset, the app uses the same origin it was loaded from.
 - Live updates come from the hub via SSE.
 
@@ -82,7 +81,6 @@ Modular session creation:
 
 See `src/hooks/useAuth.ts` and `src/hooks/useAuthSource.ts`.
 
-- Telegram Mini App: Uses initData from WebApp SDK.
 - Browser: Uses CLI_API_TOKEN from login prompt.
 - JWT tokens with auto-refresh.
 
@@ -122,10 +120,6 @@ From the repo root:
 bun install
 bun run dev:web
 ```
-
-If testing in Telegram, set:
-- `HAPI_PUBLIC_URL` to the public HTTPS URL of the dev server.
-- `CORS_ORIGINS` to include the dev server origin.
 
 ## Build
 

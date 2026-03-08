@@ -1,5 +1,5 @@
 /**
- * Sync Engine for HAPI Telegram Bot (Direct Connect)
+ * Sync Engine for HAPI Hub (Direct Connect)
  *
  * In the direct-connect architecture:
  * - hapi-hub is the hub (Socket.IO + REST)
@@ -231,7 +231,7 @@ export class SyncEngine {
                 path: string
                 previewUrl?: string
             }>
-            sentFrom?: 'telegram-bot' | 'webapp'
+            sentFrom?: 'webapp'
         }
     ): Promise<void> {
         await this.messageService.sendMessage(sessionId, payload)

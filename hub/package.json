@@ -2,7 +2,7 @@
     "name": "hapi-hub",
     "private": true,
     "version": "0.1.0",
-    "description": "Telegram Bot client for HAPI - control Claude Code sessions",
+    "description": "Hub server for HAPI - control AI coding sessions",
     "author": "weishu",
     "license": "AGPL-3.0-only",
     "type": "module",
@@ -17,7 +17,6 @@
     "dependencies": {
         "@hapi/protocol": "workspace:*",
         "@socket.io/bun-engine": "^0.1.0",
-        "grammy": "^1.38.4",
         "hono": "^4.11.2",
         "jose": "^6.1.3",
         "qrcode": "^1.5.4",

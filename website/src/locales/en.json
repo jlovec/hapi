@@ -80,9 +80,9 @@
   },
   "features": {
     "title": "Power When You Need It",
-    "telegram": {
-      "title": "Messaging App Integration",
-      "desc": "The perfect balance of distance and control. Get notified via Telegram or other apps only when your input is truly needed."
+    "notifications": {
+      "title": "Push Notifications",
+      "desc": "The perfect balance of distance and control. Get notified only when your input is truly needed."
     },
     "yolo": {
       "title": "YOLO Mode",

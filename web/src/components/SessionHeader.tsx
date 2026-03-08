@@ -2,7 +2,6 @@ import { useId, useMemo, useRef, useState } from 'react'
 import type { ApiClient } from '@/api/client'
 import type { GitStatusFiles, Session } from '@/types/api'
 import { HostBadge } from '@/components/HostBadge'
-import { isTelegramApp } from '@/hooks/useTelegram'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { MoreVerticalIcon } from '@/components/SessionIcons'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
@@ -132,11 +131,6 @@ export function SessionHeader(props: {
             setMenuAnchorPoint({ x: rect.right, y: rect.bottom })
         }
         setMenuOpen((open) => !open)
-    }
-
-    // In Telegram, don't render header (Telegram provides its own)
-    if (isTelegramApp()) {
-        return null
     }
 
     return (

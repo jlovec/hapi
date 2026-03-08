@@ -11,8 +11,6 @@
 import { getSettingsFile, readSettings, writeSettings } from './settings'
 
 export interface ServerSettings {
-    telegramBotToken: string | null
-    telegramNotification: boolean
     listenHost: string
     listenPort: number
     publicUrl: string
@@ -22,8 +20,6 @@ export interface ServerSettings {
 export interface ServerSettingsResult {
     settings: ServerSettings
     sources: {
-        telegramBotToken: 'env' | 'file' | 'default'
-        telegramNotification: 'env' | 'file' | 'default'
         listenHost: 'env' | 'file' | 'default'
         listenPort: 'env' | 'file' | 'default'
         publicUrl: 'env' | 'file' | 'default'
@@ -68,6 +64,24 @@ function deriveCorsOrigins(publicUrl: string): string[] {
     }
 }
 
+/** Legacy Telegram field names to auto-clean from settings */
+const LEGACY_TELEGRAM_FIELDS = ['telegramBotToken', 'telegramNotification'] as const
+
+/**
+ * Remove legacy Telegram fields from settings object.
+ * Returns true if any fields were removed.
+ */
+function cleanLegacyTelegramFields(settings: Record<string, unknown>): boolean {
+    let cleaned = false
+    for (const field of LEGACY_TELEGRAM_FIELDS) {
+        if (field in settings) {
+            delete settings[field]
+            cleaned = true
+        }
+    }
+    return cleaned
+}
+
 /**
  * Load hub settings with priority: env > file > default
  * Saves new env values to file when not already present
@@ -85,39 +99,15 @@ export async function loadServerSettings(dataDir: string): Promise<ServerSetting
 
     let needsSave = false
     const sources: ServerSettingsResult['sources'] = {
-        telegramBotToken: 'default',
-        telegramNotification: 'default',
         listenHost: 'default',
         listenPort: 'default',
         publicUrl: 'default',
         corsOrigins: 'default',
     }
-    // telegramBotToken: env > file > null
-    let telegramBotToken: string | null = null
-    if (process.env.TELEGRAM_BOT_TOKEN) {
-        telegramBotToken = process.env.TELEGRAM_BOT_TOKEN
-        sources.telegramBotToken = 'env'
-        if (settings.telegramBotToken === undefined) {
-            settings.telegramBotToken = telegramBotToken
-            needsSave = true
-        }
-    } else if (settings.telegramBotToken !== undefined) {
-        telegramBotToken = settings.telegramBotToken
-        sources.telegramBotToken = 'file'
-    }
 
-    // telegramNotification: env > file > true (default enabled for backward compatibility)
-    let telegramNotification = true
-    if (process.env.TELEGRAM_NOTIFICATION !== undefined) {
-        telegramNotification = process.env.TELEGRAM_NOTIFICATION === 'true'
-        sources.telegramNotification = 'env'
-        if (settings.telegramNotification === undefined) {
-            settings.telegramNotification = telegramNotification
-            needsSave = true
-        }
-    } else if (settings.telegramNotification !== undefined) {
-        telegramNotification = settings.telegramNotification
-        sources.telegramNotification = 'file'
+    // Auto-clean legacy Telegram fields from settings
+    if (cleanLegacyTelegramFields(settings as Record<string, unknown>)) {
+        needsSave = true
     }
 
     // listenHost: env > file (new or old name) > default
@@ -203,15 +193,13 @@ export async function loadServerSettings(dataDir: string): Promise<ServerSetting
         corsOrigins = deriveCorsOrigins(publicUrl)
     }
 
-    // Save settings if any new values were added
+    // Save settings if any new values were added or legacy fields cleaned
     if (needsSave) {
         await writeSettings(settingsFile, settings)
     }
 
     return {
         settings: {
-            telegramBotToken,
-            telegramNotification,
             listenHost,
             listenPort,
             publicUrl,

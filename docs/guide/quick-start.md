@@ -58,5 +58,5 @@ Enter your access token to log in.
 
 - [Seamless Handoff](./how-it-works.md#seamless-handoff) - Switch between terminal and phone seamlessly
 - [Hub setup](./installation.md#hub-setup) - Access HAPI from anywhere
-- [Notifications](./installation.md#telegram-setup) - Set up Telegram notifications
+- [Notifications](./pwa.md#notifications) - Set up push notifications
 - [Install the App](./pwa.md) - Add HAPI to your home screen

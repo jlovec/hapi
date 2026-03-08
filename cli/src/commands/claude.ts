@@ -68,7 +68,7 @@ export const claudeCommand: CommandDefinition = {
 ${chalk.bold('hapi')} - Claude Code On the Go
 
 ${chalk.bold('Usage:')}
-  hapi [options]         Start Claude with Telegram control (direct-connect)
+  hapi [options]         Start Claude with remote control (direct-connect)
   hapi auth              Manage authentication
   hapi codex             Start Codex mode
   hapi cursor            Start Cursor Agent mode

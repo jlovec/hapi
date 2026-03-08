@@ -50,7 +50,7 @@ Set mode via `--mode` flag or change from the web UI during a session.
 
 ## Integration
 
-Once running, your Cursor session appears in the HAPI web app and Telegram Mini App. You can:
+Once running, your Cursor session appears in the HAPI web app. You can:
 
 - Monitor session activity
 - Approve permissions from your phone

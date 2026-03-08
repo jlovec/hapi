@@ -181,8 +181,6 @@ On first run, HAPI:
 | `HAPI_LISTEN_PORT` | `3006` | `listenPort` | Hub HTTP port |
 | `HAPI_PUBLIC_URL` | - | `publicUrl` | Public URL for external access |
 | `CORS_ORIGINS` | - | `corsOrigins` | Allowed CORS origins (comma-separated) |
-| `TELEGRAM_BOT_TOKEN` | - | `telegramBotToken` | Telegram Bot API token |
-| `TELEGRAM_NOTIFICATION` | `true` | `telegramNotification` | Enable Telegram notifications |
 | `HAPI_RELAY_FORCE_TCP` | `false` | - | Force TCP mode for relay |
 | `VAPID_SUBJECT` | `mailto:admin@hapi.run` | - | Web Push contact info |
 | `HAPI_HOME` | `~/.hapi` | - | Config directory path |
@@ -316,28 +314,6 @@ export NODE_TLS_REJECT_UNAUTHORIZED=0
 If you use the dev-only workaround, assume MITM risk; do not use on public networks.
 
 </details>
-
-### Telegram setup
-
-Enable Telegram notifications and Mini App access:
-
-1. Message [@BotFather](https://t.me/BotFather) and create a bot
-2. Set the bot token and public URL
-3. Start the hub and bind your account
-
-```bash
-export TELEGRAM_BOT_TOKEN="your-bot-token"
-export HAPI_PUBLIC_URL="https://your-public-url"
-
-hapi hub
-```
-
-Then message your bot with `/start`, open the app, and enter your `CLI_API_TOKEN`.
-
-**Troubleshooting:**
-
-- If binding fails, verify `HAPI_PUBLIC_URL` is accessible from the internet
-- Telegram Mini App requires HTTPS (not HTTP)
 
 ### Runner setup
 

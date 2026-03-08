@@ -1,6 +1,6 @@
 # HAPI
 
-Run official Claude Code / Codex / Gemini / OpenCode sessions locally and control them remotely through a Web / PWA / Telegram Mini App.
+Run official Claude Code / Codex / Gemini / OpenCode sessions locally and control them remotely through a Web / PWA.
 
 > **Why HAPI?** HAPI is a local-first alternative to Happy. See [Why Not Happy?](docs/guide/why-hapi.md) for the key differences.
 
@@ -80,7 +80,7 @@ bun run build:single-exe
 
 ## Discussion
 
-- Telegram: [@veryhapi](https://t.me/veryhapi)
+- GitHub: [Issues](https://github.com/jlovec1024/hapi/issues)
 
 ## Credits
 

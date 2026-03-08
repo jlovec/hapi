@@ -8,9 +8,7 @@ import { useTranslation } from '@/lib/use-translation'
 import type { ServerUrlResult } from '@/hooks/useServerUrl'
 
 type LoginPromptProps = {
-    mode?: 'login' | 'bind'
     onLogin?: (token: string) => void
-    onBind?: (token: string) => Promise<void>
     baseUrl: string
     serverUrl: string | null
     setServerUrl: (input: string) => ServerUrlResult
@@ -21,7 +19,6 @@ type LoginPromptProps = {
 
 export function LoginPrompt(props: LoginPromptProps) {
     const { t } = useTranslation()
-    const isBindMode = props.mode === 'bind'
     const [accessToken, setAccessToken] = useState('')
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -38,7 +35,7 @@ export function LoginPrompt(props: LoginPromptProps) {
             return
         }
 
-        if (!isBindMode && props.requireServerUrl && !props.serverUrl) {
+        if (props.requireServerUrl && !props.serverUrl) {
             setServerError(t('login.server.required'))
             setIsServerDialogOpen(true)
             return
@@ -48,30 +45,21 @@ export function LoginPrompt(props: LoginPromptProps) {
         setError(null)
 
         try {
-            if (isBindMode) {
-                if (!props.onBind) {
-                    setError(t('login.error.bindingUnavailable'))
-                    return
-                }
-                await props.onBind(trimmedToken)
-            } else {
-                // Validate token by attempting to authenticate
-                const client = new ApiClient('', { baseUrl: props.baseUrl })
-                await client.authenticate({ accessToken: trimmedToken })
-                // If successful, pass token to parent
-                if (!props.onLogin) {
-                    setError(t('login.error.loginUnavailable'))
-                    return
-                }
-                props.onLogin(trimmedToken)
+            // Validate token by attempting to authenticate
+            const client = new ApiClient('', { baseUrl: props.baseUrl })
+            await client.authenticate({ accessToken: trimmedToken })
+            // If successful, pass token to parent
+            if (!props.onLogin) {
+                setError(t('login.error.loginUnavailable'))
+                return
             }
+            props.onLogin(trimmedToken)
         } catch (e) {
-            const fallbackMessage = isBindMode ? t('login.error.bindFailed') : t('login.error.authFailed')
-            setError(e instanceof Error ? e.message : fallbackMessage)
+            setError(e instanceof Error ? e.message : t('login.error.authFailed'))
         } finally {
             setIsLoading(false)
         }
-    }, [accessToken, props, t, isBindMode])
+    }, [accessToken, props, t])
 
     useEffect(() => {
         if (!isServerDialogOpen) {
@@ -108,9 +96,9 @@ export function LoginPrompt(props: LoginPromptProps) {
 
     const displayError = error || props.error
     const serverSummary = props.serverUrl ?? `${props.baseUrl} ${t('login.server.default')}`
-    const title = isBindMode ? t('login.bind.title') : t('login.title')
+    const title = t('login.title')
     const subtitle = t('login.subtitle')
-    const submitLabel = isBindMode ? t('login.bind.submit') : t('login.submit')
+    const submitLabel = t('login.submit')
 
     return (
         <div className="relative h-full flex items-center justify-center p-4">
@@ -157,7 +145,7 @@ export function LoginPrompt(props: LoginPromptProps) {
                         {isLoading ? (
                             <>
                                 <Spinner size="sm" label={null} className="text-[var(--app-button-text)]" />
-                                {isBindMode ? t('login.bind.submitting') : t('login.submitting')}
+                                {t('login.submitting')}
                             </>
                         ) : (
                             submitLabel
@@ -166,8 +154,7 @@ export function LoginPrompt(props: LoginPromptProps) {
                 </form>
 
                 {/* Help links */}
-                {!isBindMode && (
-                    <div className="flex items-center justify-between text-xs text-[var(--app-hint)]">
+                <div className="flex items-center justify-between text-xs text-[var(--app-hint)]">
                         <a href="https://hapi.run/docs" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--app-fg)]">
                             {t('login.help')}
                         </a>
@@ -225,7 +212,6 @@ export function LoginPrompt(props: LoginPromptProps) {
                             </DialogContent>
                         </Dialog>
                     </div>
-                )}
             </div>
 
             {/* Footer */}

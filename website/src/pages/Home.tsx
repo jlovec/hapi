@@ -194,8 +194,8 @@ export default function Home() {
                     <MessageSquare className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold mb-2">{t('features.telegram.title')}</h3>
-                    <p className="text-muted-foreground">{t('features.telegram.desc')}</p>
+                    <h3 className="text-xl font-bold mb-2">{t('features.notifications.title')}</h3>
+                    <p className="text-muted-foreground">{t('features.notifications.desc')}</p>
                   </div>
                 </div>
 

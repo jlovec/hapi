@@ -46,17 +46,12 @@ For internet access:
 The `CLI_API_TOKEN` is a shared secret that authenticates:
 - CLI connections to the hub
 - Web app logins
-- Telegram account binding
 
 It's auto-generated on first hub start and saved to `~/.hapi/settings.json`.
 
 ### Do you support multiple accounts?
 
 Yes. We support lightweight multi-account access via namespaces for shared team hubs. See [Namespace (Advanced)](./namespace.md).
-
-### Can I use HAPI without Telegram?
-
-Yes. Telegram is optional. You can use the web app directly in any browser or install it as a PWA.
 
 ## Usage
 
@@ -72,7 +67,6 @@ Yes. Telegram is optional. You can use the web app directly in any browser or in
 HAPI supports two methods:
 
 1. **PWA Push Notifications** - Enable when prompted, works even when app is closed
-2. **Telegram Bot** - See [Telegram Setup](./installation.md#telegram-setup)
 
 ### Can I start sessions remotely?
 

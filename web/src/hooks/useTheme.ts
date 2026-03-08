@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
-import { getTelegramWebApp } from './useTelegram'
 
 type ColorScheme = 'light' | 'dark'
 
@@ -59,13 +58,7 @@ function getColorScheme(): ColorScheme {
     const pref = getStoredAppearance()
     if (pref === 'dark' || pref === 'light') return pref
 
-    // 'system': use Telegram → system preference → light
-    const tg = getTelegramWebApp()
-    if (tg?.colorScheme) {
-        return tg.colorScheme === 'dark' ? 'dark' : 'light'
-    }
-
-    // Fallback to system preference for browser environment
+    // 'system': use system preference -> light
     if (typeof window !== 'undefined' && window.matchMedia) {
         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
     }
@@ -159,14 +152,10 @@ export function initializeTheme(): void {
     currentScheme = getColorScheme()
     applyTheme(currentScheme)
 
-    // Set up listeners only once (after SDK may have loaded)
+    // Set up listeners only once
     if (!listenersInitialized) {
         listenersInitialized = true
-        const tg = getTelegramWebApp()
-        if (tg?.onEvent) {
-            // Telegram theme changes
-            tg.onEvent('themeChanged', updateScheme)
-        } else if (typeof window !== 'undefined' && window.matchMedia) {
+        if (typeof window !== 'undefined' && window.matchMedia) {
             // Browser system preference changes
             const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
             mediaQuery.addEventListener('change', updateScheme)

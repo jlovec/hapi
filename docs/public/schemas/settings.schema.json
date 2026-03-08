@@ -30,7 +30,7 @@
     "publicUrl": {
       "type": "string",
       "format": "uri",
-      "description": "Public URL for external access (e.g., Telegram Mini App). ENV: HAPI_PUBLIC_URL"
+      "description": "Public URL for external access. ENV: HAPI_PUBLIC_URL"
     },
     "corsOrigins": {
       "type": "array",
@@ -38,15 +38,6 @@
         "type": "string"
       },
       "description": "Allowed CORS origins. ENV: CORS_ORIGINS (comma-separated)"
-    },
-    "telegramBotToken": {
-      "type": "string",
-      "description": "Telegram Bot API token from @BotFather. ENV: TELEGRAM_BOT_TOKEN"
-    },
-    "telegramNotification": {
-      "type": "boolean",
-      "default": true,
-      "description": "Enable Telegram notifications. ENV: TELEGRAM_NOTIFICATION"
     },
     "vapidKeys": {
       "type": "object",

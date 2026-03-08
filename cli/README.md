@@ -18,7 +18,7 @@ Run Claude Code, Codex, Cursor Agent, Gemini, or OpenCode sessions from your ter
 1. Start the hub and set env vars (see ../hub/README.md).
 2. Set the same CLI_API_TOKEN on this machine or run `hapi auth login`.
 3. Run `hapi` to start a session.
-4. Use the web app or Telegram Mini App to monitor and control.
+4. Use the web app to monitor and control.
 
 ## Commands
 
@@ -31,7 +31,7 @@ Run Claude Code, Codex, Cursor Agent, Gemini, or OpenCode sessions from your ter
   Supports `hapi cursor resume <chatId>`, `hapi cursor --continue`, `--mode plan|ask`, `--yolo`, `--model`.
   Local and remote modes supported; remote uses `agent -p` with stream-json.
 - `hapi gemini` - Start Gemini mode via ACP. See `src/agent/runners/runAgentSession.ts`.
-  Note: Gemini runs in remote mode only; it waits for messages from the hub UI/Telegram.
+  Note: Gemini runs in remote mode only; it waits for messages from the hub UI.
 - `hapi opencode` - Start OpenCode mode via ACP. See `src/opencode/runOpencode.ts`.
   Note: OpenCode supports local and remote modes; local mode streams via OpenCode plugins.
 

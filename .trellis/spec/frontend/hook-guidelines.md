@@ -60,18 +60,17 @@ When logic needs to be used both inside and outside React components, export bot
 ```typescript
 // hooks/usePlatform.ts
 export function usePlatform(): Platform {
-    const isTelegram = useMemo(() => isTelegramApp(), [])
     const isTouch = useMemo(
         () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
         []
     )
-    return { isTelegram, isTouch, haptic }
+    return { isTouch, haptic }
 }
 
 // Non-hook version for use outside React components
 export function getPlatform(): Platform {
     const isTouch = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
-    return { isTelegram: isTelegramApp(), isTouch, haptic }
+    return { isTouch, haptic }
 }
 ```
 

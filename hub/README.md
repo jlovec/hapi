@@ -1,10 +1,9 @@
 # hapi-hub
 
-Telegram bot + HTTP API + realtime updates for hapi hub.
+HTTP API + realtime updates for hapi hub.
 
 ## What it does
 
-- Telegram bot for notifications and the Mini App entrypoint.
 - HTTP API for sessions, messages, permissions, machines, and files.
 - Server-Sent Events stream for live updates in the web app.
 - Socket.IO channel for CLI connections.
@@ -19,19 +18,14 @@ See `src/configuration.ts` for all options.
 
 - `CLI_API_TOKEN` - Base shared secret used by CLI and web login. Clients append `:<namespace>` for isolation. Auto-generated on first run if not set.
 
-### Optional (Telegram)
-
-- `TELEGRAM_BOT_TOKEN` - Token from @BotFather.
-- `HAPI_PUBLIC_URL` - Public HTTPS URL for Telegram Mini App access. Also used to derive default CORS origins for the web app.
-
 ### Optional
 
 - `HAPI_LISTEN_HOST` - HTTP bind address (default: 127.0.0.1).
 - `HAPI_LISTEN_PORT` - HTTP port (default: 3006).
+- `HAPI_PUBLIC_URL` - Public HTTPS URL. Also used to derive default CORS origins for the web app.
 - `CORS_ORIGINS` - Comma-separated origins, or `*`.
 - `HAPI_HOME` - Data directory (default: ~/.hapi).
 - `DB_PATH` - SQLite database path (default: HAPI_HOME/hapi.db).
-- `TELEGRAM_NOTIFICATION` - Enable/disable Telegram notifications (default: true).
 - `HAPI_RELAY_API` - Relay API domain (default: relay.hapi.run).
 - `HAPI_RELAY_AUTH` - Relay auth key (default: hapi).
 - `HAPI_RELAY_FORCE_TCP` - Force TCP relay mode (true/1).
@@ -42,7 +36,6 @@ See `src/configuration.ts` for all options.
 Binary (single executable):
 
 ```bash
-export TELEGRAM_BOT_TOKEN="..."
 export CLI_API_TOKEN="shared-secret"
 export HAPI_PUBLIC_URL="https://your-domain.example"
 
@@ -50,10 +43,6 @@ hapi hub
 ```
 
 `hapi server` remains supported as an alias.
-
-If you only need web + CLI, you can omit TELEGRAM_BOT_TOKEN.
-To enable Telegram, set TELEGRAM_BOT_TOKEN and HAPI_PUBLIC_URL, start the hub, open `/app`
-in the bot chat, and bind the Mini App with `CLI_API_TOKEN:<namespace>` when prompted.
 
 From source:
 
@@ -68,8 +57,7 @@ See `src/web/routes/` for all endpoints.
 
 ### Authentication (`src/web/routes/auth.ts`)
 
-- `POST /api/auth` - Get JWT token (Telegram initData or `CLI_API_TOKEN[:namespace]`).
-- `POST /api/bind` - Bind a Telegram account using initData + `CLI_API_TOKEN:<namespace>`.
+- `POST /api/auth` - Get JWT token (`CLI_API_TOKEN[:namespace]`).
 
 ### Sessions (`src/web/routes/sessions.ts`)
 
@@ -161,23 +149,6 @@ Namespace: `/cli`
 
 See `src/socket/rpcRegistry.ts` for RPC routing.
 
-## Telegram Bot
-
-See `src/telegram/bot.ts` for bot implementation.
-
-### Commands
-
-- `/start` - Welcome message with Mini App link.
-- `/app` - Open Mini App.
-
-### Features
-
-- Permission request notifications with approve/deny buttons.
-- Session ready notifications.
-- Deep links to Mini App sessions.
-
-See `src/telegram/callbacks.ts` for button handlers.
-
 ## Core Logic
 
 See `src/sync/syncEngine.ts` for the main session/message manager:
@@ -186,7 +157,7 @@ See `src/sync/syncEngine.ts` for the main session/message manager:
 - Message pagination and retrieval.
 - Permission approval/denial.
 - RPC method routing via Socket.IO.
-- Event publishing to SSE and Telegram.
+- Event publishing to SSE.
 - Git operations and file search.
 - Activity tracking and timeouts.
 
@@ -198,25 +169,23 @@ See `src/store/index.ts` for SQLite persistence:
 - Messages with pagination support.
 - Machines with runner state.
 - Todo extraction from messages.
-- Users table for Telegram bindings (includes namespace).
+- Users table (includes namespace).
 
 ## Source structure
 
 - `src/web/` - HTTP service and routes.
 - `src/socket/` - Socket.IO setup and handlers.
 - `src/socket/handlers/cli/` - Modular CLI handlers.
-- `src/telegram/` - Telegram bot.
 - `src/sync/` - Core session/message logic.
 - `src/store/` - SQLite persistence.
 - `src/sse/` - Server-Sent Events.
 - `src/config/` - Configuration loading and generation.
-- `src/notifications/` - Push and Telegram notifications.
+- `src/notifications/` - Push notifications.
 - `src/visibility/` - Client visibility tracking.
 
 ## Security model
 
 Access is controlled by:
-- Telegram initData verification plus bound Telegram users (bound via `CLI_API_TOKEN:<namespace>`).
 - `CLI_API_TOKEN` base secret for CLI and browser access (namespace is appended by clients).
 
 Transport security depends on HTTPS in front of the hub.
@@ -234,7 +203,6 @@ The hub build output is `hub/dist/index.js`, and the web assets are in `web/dist
 
 ## Networking notes
 
-- Telegram Mini Apps require HTTPS and a public URL. If the hub has no public IP, use Cloudflare Tunnel or Tailscale and set `HAPI_PUBLIC_URL` to the HTTPS endpoint.
 - If the web app is hosted on a different origin, set `CORS_ORIGINS` (or `HAPI_PUBLIC_URL`) to include that static host origin.
 
 ## Standalone web hosting

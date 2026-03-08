@@ -11,7 +11,6 @@ HAPI Hub is a Bun-based backend service that provides:
 - Socket.IO server for real-time CLI connections
 - SSE (Server-Sent Events) for web client updates
 - SQLite database with WAL mode
-- Optional Telegram bot integration
 - WireGuard tunnel management
 
 **Key characteristics**:
@@ -64,8 +63,6 @@ hub/src/
 │   └── types.ts            # Store type definitions
 ├── sync/                   # Sync engine
 │   └── syncEngine.ts       # Central state synchronization
-├── telegram/               # Telegram bot integration
-│   └── bot.ts              # Telegram bot implementation
 ├── tunnel/                 # WireGuard tunnel management
 │   └── ...
 ├── types/                  # Shared type definitions
@@ -181,10 +178,8 @@ const notificationHub = new NotificationHub(syncEngine, channels)
 // 5. Start web server (Hono + Socket.IO)
 const webServer = await startWebServer({ store, syncEngine, ... })
 
-// 6. Start optional services (Telegram bot, tunnel)
-if (config.telegram.enabled) {
-    const bot = new HappyBot(...)
-}
+// 6. Start optional services (tunnel)
+const webServer = await startWebServer({ store, syncEngine, ... })
 ```
 
 **Pattern**: Configuration → Store → Services → Servers
@@ -204,7 +199,6 @@ Configuration is loaded from multiple sources with priority:
 export type ServerSettings = {
     port: number
     cors: { origins: string[] }
-    telegram: { enabled: boolean; token?: string }
 }
 
 // configuration.ts

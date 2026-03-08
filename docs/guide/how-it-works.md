@@ -31,8 +31,8 @@ HAPI consists of three interconnected components that work together to provide r
 │         │                         ▼                         │              │
 │         │    ┌──────────────┐           ┌──────────────┐    │              │
 │         │    │              │           │              │    │              │
-│         │    │  Telegram    │           │    PWA /     │    │              │
-│         │    │  Mini App    │           │   Browser    │    │              │
+│         │    │    PWA /     │           │   Browser    │    │              │
+│         │    │   Phone      │           │              │    │              │
 │         │    │              │           │              │    │              │
 │         │    └──────────────┘           └──────────────┘    │              │
 │         │                                                   │              │
@@ -72,7 +72,6 @@ The hub is the central service that connects everything:
 - **Socket.IO** - Real-time bidirectional communication with CLI
 - **SSE (Server-Sent Events)** - Live updates pushed to web clients
 - **SQLite Database** - Persistent storage for sessions and messages
-- **Telegram Bot** - Notifications and Mini App integration
 
 ### Web App
 
@@ -116,13 +115,13 @@ A React-based PWA that provides the mobile interface:
 2. CLI sends permission request to hub
          │
          ▼
-3. Hub stores request and notifies via SSE + Telegram
+3. Hub stores request and notifies via SSE
          │
          ▼
 4. User receives notification on phone
          │
          ▼
-5. User approves/denies in web app or Telegram
+5. User approves/denies in web app
          │
          ▼
 6. Hub relays decision to CLI via Socket.IO
@@ -186,7 +185,7 @@ When working in local mode, you have the full terminal experience — it is nati
 
 Switch to remote mode when you need to step away:
 
-- Control via Web/PWA/Telegram from any device
+- Control via Web/PWA from any device
 - Approve permissions on the go
 - Monitor progress while away from your desk
 - Session continues running on your local machine

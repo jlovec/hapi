@@ -80,9 +80,9 @@
   },
   "features": {
     "title": "随需而动的力量",
-    "telegram": {
-      "title": "即时通讯集成",
-      "desc": "距离与控制的完美平衡。通过 Telegram 或其他应用，只在真正需要你输入时才通知你。"
+    "notifications": {
+      "title": "推送通知",
+      "desc": "距离与控制的完美平衡。只在真正需要你输入时才通知你。"
     },
     "yolo": {
       "title": "YOLO 模式",

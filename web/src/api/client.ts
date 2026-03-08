@@ -122,7 +122,7 @@ export class ApiClient {
         return await res.json() as T
     }
 
-    async authenticate(auth: { initData: string } | { accessToken: string }): Promise<AuthResponse> {
+    async authenticate(auth: { accessToken: string }): Promise<AuthResponse> {
         const res = await fetch(this.buildUrl('/api/auth'), {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
@@ -134,23 +134,6 @@ export class ApiClient {
             const code = parseErrorCode(body)
             const detail = body ? `: ${body}` : ''
             throw new ApiError(`Auth failed: HTTP ${res.status} ${res.statusText}${detail}`, res.status, code, body || undefined)
-        }
-
-        return await res.json() as AuthResponse
-    }
-
-    async bind(auth: { initData: string; accessToken: string }): Promise<AuthResponse> {
-        const res = await fetch(this.buildUrl('/api/bind'), {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(auth)
-        })
-
-        if (!res.ok) {
-            const body = await res.text().catch(() => '')
-            const code = parseErrorCode(body)
-            const detail = body ? `: ${body}` : ''
-            throw new ApiError(`Bind failed: HTTP ${res.status} ${res.statusText}${detail}`, res.status, code, body || undefined)
         }
 
         return await res.json() as AuthResponse

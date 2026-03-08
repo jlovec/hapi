@@ -12,7 +12,7 @@ Local-first platform for running AI coding agents (Claude Code, Codex, Gemini) w
 
 ```
 cli/     - CLI binary, agent wrappers, runner daemon
-hub/     - HTTP API + Socket.IO + SSE + Telegram bot
+hub/     - HTTP API + Socket.IO + SSE
 web/     - React PWA for remote control
 shared/  - Common types, schemas, utilities
 docs/    - VitePress documentation site
@@ -32,7 +32,7 @@ Bun workspaces; `shared` consumed by cli, hub, web.
      ├─ Wraps Claude/Codex    ├─ SQLite persistence   ├─ TanStack Query
      ├─ Socket.IO client      ├─ Session cache        ├─ SSE for updates
      └─ RPC handlers          ├─ RPC gateway          └─ assistant-ui
-                              └─ Telegram bot
+                              └─ Push notifications
 ```
 
 **Data flow:**
@@ -86,8 +86,7 @@ bun run build:single-exe # All-in-one binary
 - `sync/` - Core logic (sessionCache, messageService, rpcGateway)
 - `store/` - SQLite persistence (better-sqlite3)
 - `sse/` - Server-Sent Events manager
-- `telegram/` - Bot commands, callbacks
-- `notifications/` - Push (VAPID) and Telegram notifications
+- `notifications/` - Push (VAPID) notifications
 - `config/` - Settings loading, token generation
 - `visibility/` - Client visibility tracking
 

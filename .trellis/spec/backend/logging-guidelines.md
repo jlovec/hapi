@@ -26,7 +26,7 @@ HAPI Hub uses **simple console logging** (no logging library). Logs are written 
 
 Use for:
 - **Startup messages** - Server starting, configuration loaded
-- **Service status** - "Telegram: enabled", "Tunnel: ready"
+- **Service status** - "Tunnel: ready", "Push: enabled"
 - **Important state changes** - "Session resumed", "Machine connected"
 - **User-facing events** - QR code display, URLs to open
 
@@ -61,7 +61,7 @@ Use for:
 - **Unexpected errors** - Exceptions, database errors, network failures
 - **Fatal errors** - Server cannot start, critical dependency missing
 - **Background task failures** - Notification send failed, sync error
-- **Service failures** - Tunnel failed to start, Telegram bot error
+- **Service failures** - Tunnel failed to start, push notification error
 
 ```typescript
 console.error('Fatal error:', error)
@@ -83,12 +83,6 @@ console.log('HAPI Hub starting...')
 console.log(`[Hub] HAPI_LISTEN_HOST: ${config.listenHost} (${formatSource(config.sources.listenHost)})`)
 console.log(`[Hub] HAPI_LISTEN_PORT: ${config.listenPort} (${formatSource(config.sources.listenPort)})`)
 console.log(`[Hub] HAPI_PUBLIC_URL: ${config.publicUrl} (${formatSource(config.sources.publicUrl)})`)
-
-if (config.telegramEnabled) {
-    console.log(`[Hub] Telegram: enabled (${tokenSource})`)
-} else {
-    console.log('[Hub] Telegram: disabled (no TELEGRAM_BOT_TOKEN)')
-}
 ```
 
 **Why**: Makes debugging configuration issues easy - you can see where each value came from.
@@ -102,7 +96,6 @@ Use consistent prefixes for different components:
 - `[Socket]` - Socket.IO server
 - `[Store]` - Database operations (rare - only for migrations)
 - `[Tunnel]` - WireGuard tunnel management
-- `[Telegram]` - Telegram bot
 - `[WARN]` - Warnings from any component
 
 ```typescript
@@ -165,7 +158,7 @@ socket.on('message', (data) => {
 1. **Startup events**
    - Server starting
    - Configuration loaded (with sources)
-   - Services initialized (Telegram, tunnel, etc.)
+   - Services initialized (tunnel, push, etc.)
    - Server ready (with URLs)
 
 2. **Configuration issues**
@@ -175,7 +168,7 @@ socket.on('message', (data) => {
 
 3. **Service state changes**
    - Tunnel connected/disconnected
-   - Telegram bot started/stopped
+   - Push notification service started/stopped
    - Database migrations applied
 
 4. **Unexpected errors**
@@ -308,7 +301,6 @@ Not handled by the application - use external tools:
 **Never log**:
 - `CLI_API_TOKEN` value (log source only)
 - `JWT_SECRET` value
-- `TELEGRAM_BOT_TOKEN` value
 - User message content
 - Database connection strings with passwords
 
