@@ -280,14 +280,8 @@ export function HappyComposer(props: {
             return
         }
 
-        // Shift+Enter sends the message (works on all platforms including iPadOS with keyboard)
-        if (key === 'Enter' && e.shiftKey) {
-            e.preventDefault()
-            if (!canSend) return
-            api.composer().send()
-            setShowContinueHint(false)
-            return
-        }
+        // Let textarea default behavior handle Shift+Enter new line.
+        // Plain Enter submission is handled by ComposerPrimitive.Input submitOnEnter.
 
         if (suggestions.length > 0) {
             if (key === 'ArrowUp') {
@@ -339,8 +333,6 @@ export function HappyComposer(props: {
         onPermissionModeChange,
         permissionMode,
         permissionModes,
-        canSend,
-        api,
         haptic
     ])
 
