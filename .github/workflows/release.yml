@@ -23,34 +23,58 @@ jobs:
             - run: bun run build:single-exe:all
             - name: Prepare npm packages
               run: cd cli && bun run prepare-npm-packages
-            - name: Package release artifacts
+            - name: Package Homebrew artifacts
               run: |
                   cd cli/dist-exe
                   mkdir -p ../release-artifacts
 
-                  for dir in bun-*/; do
+                  # Only package platforms required by Homebrew (no Windows)
+                  for dir in bun-darwin-* bun-linux-*; do
+                      [ -d "$dir" ] || continue
                       target="${dir%/}"
-                      # bun-darwin-arm64 -> zs-darwin-arm64
                       name="zs-${target#bun-}"
-                      name="${name/windows/win32}"
-
-                      if [[ "$target" == *"windows"* ]]; then
-                          zip -j "../release-artifacts/${name}.zip" "$target"/zs.exe
-                      else
-                          tar -czvf "../release-artifacts/${name}.tar.gz" -C "$target" zs
-                      fi
+                      tar -czvf "../release-artifacts/${name}.tar.gz" -C "$target" zs
                   done
 
                   cd ../release-artifacts
-                  sha256sum * > checksums.txt
+                  sha256sum *.tar.gz > checksums.txt
+            - name: Build release notes
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  TAG="${GITHUB_REF#refs/tags/}"
+
+                  # Try to fetch the latest draft release body created by Release Drafter
+                  DRAFT_BODY=$(gh api repos/${{ github.repository }}/releases \
+                      --jq '[.[] | select(.draft==true)] | first | .body // empty' 2>/dev/null || true)
+
+                  if [ -z "$DRAFT_BODY" ]; then
+                      DRAFT_BODY="## What's Changed"
+                  fi
+
+                  # Append install/upgrade instructions (substitute TAG placeholder)
+                  INSTALL_NOTES=$(TAG="$TAG" envsubst '${TAG}' < .github/release-install-notes.md)
+
+                  printf '%s\n%s\n' "$DRAFT_BODY" "$INSTALL_NOTES" > /tmp/release-notes.md
             - name: Create Release
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
-                  gh release create "${GITHUB_REF#refs/tags/}" \
-                      --title "Release ${GITHUB_REF#refs/tags/}" \
-                      --generate-notes \
-                      cli/release-artifacts/*
+                  TAG="${GITHUB_REF#refs/tags/}"
+                  gh release create "$TAG" \
+                      --title "Release $TAG" \
+                      --notes-file /tmp/release-notes.md
+            - name: Delete draft release
+              continue-on-error: true
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  # Clean up the draft release that was consumed
+                  DRAFT_ID=$(gh api repos/${{ github.repository }}/releases \
+                      --jq '[.[] | select(.draft==true)] | first | .id // empty' 2>/dev/null || true)
+                  if [ -n "$DRAFT_ID" ]; then
+                      gh api -X DELETE "repos/${{ github.repository }}/releases/$DRAFT_ID"
+                  fi
             - name: Update Homebrew formula
               continue-on-error: true
               env:

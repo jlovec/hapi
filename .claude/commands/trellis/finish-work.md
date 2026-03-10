@@ -11,12 +11,16 @@ Before submitting or committing, use this checklist to ensure work completeness.
 ### 1. Code Quality
 
 ```bash
+# Prerequisite (if dependencies may be missing)
+bun install
+
 # Must pass
 bun run lint
 bun run type-check
 bun run test
 ```
 
+- [ ] Dependencies are installed (`bun install` has been run in current workspace)?
 - [ ] `bun run lint` passes with 0 errors?
 - [ ] `bun run type-check` passes with no type errors?
 - [ ] Tests pass?

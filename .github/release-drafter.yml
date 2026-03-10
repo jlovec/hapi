@@ -1,0 +1,73 @@
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+# Mixed strategy: prefer PR labels, fall back to conventional commits
+categories:
+  - title: 'Breaking Changes'
+    labels:
+      - 'breaking'
+      - 'breaking-change'
+    collapse-after: 5
+  - title: 'New Features'
+    labels:
+      - 'feature'
+      - 'enhancement'
+    collapse-after: 10
+  - title: 'Bug Fixes'
+    labels:
+      - 'bug'
+      - 'bugfix'
+      - 'fix'
+    collapse-after: 10
+  - title: 'Documentation'
+    labels:
+      - 'documentation'
+      - 'docs'
+    collapse-after: 5
+  - title: 'Infrastructure'
+    labels:
+      - 'infrastructure'
+      - 'ci'
+      - 'devops'
+    collapse-after: 5
+  - title: 'Other Changes'
+    labels:
+      - 'chore'
+      - 'refactor'
+      - 'dependencies'
+    collapse-after: 5
+
+# Conventional commit fallback via autolabeler
+autolabeler:
+  - label: 'breaking'
+    title:
+      - '/^(feat|fix|refactor)(\(.+\))?!:/'
+    body:
+      - '/BREAKING[ -]CHANGE/'
+  - label: 'feature'
+    title:
+      - '/^feat(\(.+\))?:/'
+  - label: 'fix'
+    title:
+      - '/^fix(\(.+\))?:/'
+  - label: 'documentation'
+    title:
+      - '/^docs(\(.+\))?:/'
+  - label: 'infrastructure'
+    title:
+      - '/^(ci|build)(\(.+\))?:/'
+  - label: 'chore'
+    title:
+      - '/^(chore|refactor|style|test|perf)(\(.+\))?:/'
+
+exclude-labels:
+  - 'skip-changelog'
+
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&'
+no-changes-template: 'No notable changes in this release.'
+
+template: |
+  ## What's Changed
+
+  $CHANGES
