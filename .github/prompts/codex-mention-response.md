@@ -95,7 +95,7 @@ fi
    Requested by @$comment_author in [comment](https://github.com/$repo/issues/$target_number#issuecomment-$comment_id)
 
    ---
-   *HAPI Bot* <!-- reply-to:$comment_id -->"
+   *主神Bot* <!-- reply-to:$comment_id -->"
    ```
 
 ### For `review` intent:
@@ -121,7 +121,7 @@ fi
 [If created a PR: **PR Created:** #NUMBER]
 
 ---
-*HAPI Bot* <!-- reply-to:COMMENT_ID -->
+*主神Bot* <!-- reply-to:COMMENT_ID -->
 ```
 
 ## Post to GitHub (MANDATORY)
@@ -130,7 +130,7 @@ fi
 gh issue comment "$target_number" -R "$repo" --body "YOUR_RESPONSE
 
 ---
-*HAPI Bot* <!-- reply-to:$comment_id -->"
+*主神Bot* <!-- reply-to:$comment_id -->"
 ```
 
 ## Constraints

@@ -131,9 +131,18 @@ bun run build      # Build for production
     engine.getSessions()  // Safe
     ```
 
----
 
-## Required Patterns
+## Bot Integration Contracts
+
+For GitHub Actions that invoke `openai/codex-action@v1`:
+
+- Treat `responses-api-endpoint` as the final Responses API URL, not as a provider base URL.
+- Require custom endpoints to end with `/responses` before the action step runs.
+- Reject malformed values such as `https://host/` or `https://host/v1` in workflow preflight checks.
+- Prefer explicit runner-local `codex-home` setup to avoid hidden dependence on `~/.codex`.
+- When a run still fails with `stream disconnected before response.completed` after URL validation passes, investigate upstream protocol compatibility rather than prompt content first.
+
+---
 
 ### ✅ Always Use
 
@@ -515,9 +524,83 @@ git pull --rebase origin main
 git push origin main
 ```
 
----
+## Scenario: GitHub Actions Codex Home Contract (Bot Workflows)
 
-## Scenario: Automated Clean PR Delivery Loop (Branch Governor + PR Autopilot)
+### 1. Scope / Trigger
+- Trigger: GitHub Actions workflows invoke `openai/codex-action@v1` for PR review, mention response, or issue auto-response.
+- Why code-spec depth is required:
+  - The action writes runner-local server metadata into `codex-home`; if the directory contract is implicit, the workflow can fail before any prompt executes.
+  - Failure shows up as action-internal `read-server-info` ENOENT, but the root cause is often missing runner-local state preparation or incompatible endpoint initialization.
+  - The contract spans workflow YAML, runner temp filesystem, and external Responses API endpoint configuration.
+
+### 2. Signatures
+- Workflow files:
+  - `.github/workflows/codex-pr-review.yml`
+  - `.github/workflows/codex-mention-response.yml`
+  - `.github/workflows/issue-auto-response.yml`
+- Action signature:
+  - `uses: openai/codex-action@v1`
+- Required action inputs/env for stable runner-local state:
+  - `codex-home: ${{ runner.temp }}/codex-home`
+  - a prior shell step creating that directory
+- Endpoint signature:
+  - `responses-api-endpoint: ${{ secrets.OPENAI_BASE_URL }}` only when the secret is confirmed to be Responses-API compatible.
+
+### 3. Contracts
+- Runner-local state contract:
+  - Workflow MUST create the directory used by `codex-home` before invoking `openai/codex-action@v1`.
+- Isolation contract:
+  - Workflow SHOULD use `${{ runner.temp }}` for `codex-home` instead of relying on default `~/.codex` state.
+- Endpoint compatibility contract:
+  - `responses-api-endpoint` MUST point to a Responses API compatible base endpoint; if compatibility is unknown, prefer the action default endpoint.
+- Failure attribution contract:
+  - `Error: Failed to read server info from <codex-home>/<run_id>.json` means the action could not observe the expected server metadata file; treat this as startup/contract failure, not prompt-content failure.
+
+### 4. Validation & Error Matrix
+- `ENOENT <codex-home>/<run_id>.json` -> directory missing or action startup failed before writing metadata; verify prepare step and `codex-home` path first.
+- `codex-home` omitted -> action falls back to default `~/.codex`; environment-dependent behavior becomes harder to reproduce.
+- Custom endpoint configured but not Responses compatible -> startup may fail before metadata file exists; retry with default endpoint or validated compatible base URL.
+- Multiple bot workflows share identical assumptions -> fix all Codex workflows, not just the first failing one.
+
+### 5. Good/Base/Bad Cases
+- Good:
+  - Workflow creates `${{ runner.temp }}/codex-home`, passes `codex-home`, and Codex step starts consistently on fresh runners.
+- Base:
+  - Workflow uses default endpoint and explicit temp `codex-home`; no custom networking assumptions.
+- Bad:
+  - Workflow relies on implicit `~/.codex` and treats `read-server-info` ENOENT as flaky model behavior instead of startup contract failure.
+
+### 6. Tests Required (with assertion points)
+- Workflow assertions:
+  - Each workflow that uses `openai/codex-action@v1` has a preceding `Prepare Codex home` step.
+  - Each such action call passes `codex-home: ${{ runner.temp }}/codex-home`.
+- Failure triage assertions:
+  - If ENOENT reappears, inspect `codex-home` setup and endpoint compatibility before changing prompts.
+- Local review assertions:
+  - `git diff` shows the directory-prepare step and `codex-home` input added consistently across all Codex workflows.
+
+### 7. Wrong vs Correct
+#### Wrong
+```yaml
+- uses: openai/codex-action@v1
+  with:
+    openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+    prompt-file: .github/prompts/codex-pr-review.md
+```
+
+#### Correct
+```yaml
+- name: Prepare Codex home
+  run: mkdir -p "${{ runner.temp }}/codex-home"
+
+- uses: openai/codex-action@v1
+  with:
+    openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+    codex-home: ${{ runner.temp }}/codex-home
+    prompt-file: .github/prompts/codex-pr-review.md
+```
+
+---
 
 ### 1. Scope / Trigger
 - Trigger: After code implementation, workflow requires automated branch governance, clean PR creation, review-driven iteration, and optional PR replacement.
