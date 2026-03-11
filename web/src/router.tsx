@@ -324,7 +324,7 @@ function SessionPage() {
     )
 }
 
-function SessionDetailRoute() {
+export function SessionDetailRoute() {
     const { api } = useAppContext()
     const navigate = useNavigate()
     const pathname = useLocation({ select: location => location.pathname })
@@ -376,6 +376,10 @@ function SessionDetailRoute() {
         navigate({ to: '/sessions/$sessionId/files', params: { sessionId } })
     }, [navigate, sessionId])
 
+    const handleSessionDeleted = useCallback(() => {
+        navigate({ to: '/sessions' })
+    }, [navigate])
+
     if (!session) {
         return (
             <div className="flex-1 flex items-center justify-center p-4">
@@ -390,7 +394,7 @@ function SessionDetailRoute() {
                 session={session}
                 onBack={goBack}
                 api={api}
-                onSessionDeleted={goBack}
+                onSessionDeleted={handleSessionDeleted}
                 gitSummary={gitStatusForHeader}
                 gitLoading={gitLoading && !gitStatusForHeader}
                 gitError={Boolean(gitError) && !gitStatusForHeader}

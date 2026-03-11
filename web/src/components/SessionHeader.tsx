@@ -150,7 +150,9 @@ export function SessionHeader({
     const views: Array<{ key: SessionHeaderView; label: string }> = [
         { key: 'chat', label: t('session.view.chat') },
         { key: 'terminal', label: t('session.view.terminal') },
-        { key: 'files', label: t('session.view.files') },
+        ...(session.metadata?.path
+            ? [{ key: 'files' as const, label: t('session.view.files') }]
+            : []),
     ]
 
     return (
@@ -208,7 +210,10 @@ export function SessionHeader({
                 </div>
 
                 <div className="mx-auto w-full max-w-content" role="tablist" aria-label={t('session.view.label')}>
-                    <div className="grid grid-cols-3">
+                    <div
+                        className="grid"
+                        style={{ gridTemplateColumns: `repeat(${views.length}, minmax(0, 1fr))` }}
+                    >
                         {views.map((view) => {
                             const active = currentView === view.key
                             return (
