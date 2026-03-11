@@ -710,7 +710,8 @@ gh pr create --base main --head <fork>:contrib/<topic>
   - PR validation SHOULD prefer the cheapest build that still proves Dockerfile correctness.
   - Publish path MAY use multi-arch build (`linux/amd64,linux/arm64`) and registry push.
 - Push signature:
-  - `push: ${{ github.event_name != 'pull_request' }}`
+  - `pr-validate`: `push: false`
+  - `publish`: `push: true`
 
 ### 3. Contracts
 - Responsibility contract:
