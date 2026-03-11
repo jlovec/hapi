@@ -11,6 +11,7 @@ import { createModeChangeHandler, createRunnerLifecycle, setControlledByUser } f
 import { isPermissionModeAllowedForFlavor } from '@zs/protocol';
 import { PermissionModeSchema } from '@zs/protocol/schemas';
 import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
+import { getSpawnedCliWorkingDirectory } from '@/utils/spawnHappyCLI';
 
 export { emitReadyIfIdle } from './utils/emitReadyIfIdle';
 
@@ -21,7 +22,7 @@ export async function runCodex(opts: {
     resumeSessionId?: string;
     model?: string;
 }): Promise<void> {
-    const workingDirectory = process.cwd();
+    const workingDirectory = getSpawnedCliWorkingDirectory();
     const startedBy = opts.startedBy ?? 'terminal';
 
     logger.debug(`[codex] Starting with options: startedBy=${startedBy}`);
