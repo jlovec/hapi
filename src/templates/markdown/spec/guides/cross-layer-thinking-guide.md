@@ -211,6 +211,27 @@ Recommended fast verification:
 
 ---
 
+## Docker Build Lockfile Immutability Checklist (GitHub Actions + Bun Workspace)
+
+When Docker image builds use `bun install --frozen-lockfile` in CI:
+- [ ] Does Dockerfile copy **all workspace manifests** used by `bun.lock` before install (root + each workspace `package.json`)?
+- [ ] Was `bun.lock` regenerated and committed from repo root after any workspace dependency/script/workspace metadata change?
+- [ ] Is local verification done with the same strict mode (`bun install --frozen-lockfile`) before pushing?
+- [ ] Does CI pin Bun version consistently with local/dev container to avoid lockfile format drift?
+- [ ] Are PR checks configured to fail early when `bun.lock` is dirty (`git diff --exit-code bun.lock` after install)?
+
+Typical failure pattern:
+- Docker build reaches `RUN bun install --frozen-lockfile` and fails with `lockfile had changes, but lockfile is frozen`.
+- Multi-arch Buildx log may show unrelated platform stage cancellation (`arm64 CANCELED`), while root cause is `amd64` lockfile mutation.
+
+Recommended fast verification:
+1. Run `bun install` at repository root.
+2. Check whether `bun.lock` changes.
+3. If changed, commit `bun.lock` with corresponding manifest changes.
+4. Re-run `bun install --frozen-lockfile` locally and in Docker context.
+
+---
+
 ## Global Package Manager Context Checklist (Dependency Warning Triage)
 
 When analyzing `pnpm install -g` or other global install warnings:

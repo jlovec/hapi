@@ -608,6 +608,79 @@ gh pr create --base main --head <fork>:contrib/<topic>
 
 ---
 
+## Scenario: Docker Build Lockfile Freeze Contract (Bun Workspace CI)
+
+### 1. Scope / Trigger
+- Trigger: GitHub Actions Docker multi-arch build fails at `bun install --frozen-lockfile`.
+- Why code-spec depth is required:
+  - Lockfile immutability is an executable CI contract, not a soft convention.
+  - Failure appears inside Docker Buildx pipeline, but root cause often originates from repository dependency graph drift.
+  - Requires synchronized handling across `package.json` manifests, `bun.lock`, Dockerfile copy order, and CI validation commands.
+
+### 2. Signatures
+- Docker install step signature:
+  - `Dockerfile.hub`, `Dockerfile.cli`
+  - `RUN bun install --frozen-lockfile`
+- Workspace manifest copy signature:
+  - root `package.json`, root `bun.lock`, and all workspace `*/package.json` included in lock resolution.
+- CI workflow signature:
+  - `.github/workflows/docker-images.yml`
+  - `docker/build-push-action` with `platforms: linux/amd64,linux/arm64`
+
+### 3. Contracts
+- Lockfile immutability contract:
+  - If any workspace dependency graph changed, `bun.lock` MUST be regenerated and committed before CI Docker build.
+- Docker context contract:
+  - Dockerfile MUST copy all manifests participating in lock resolution before `bun install --frozen-lockfile`.
+- Version consistency contract:
+  - Bun version in local/dev/CI SHOULD be pinned consistently to avoid lockfile format and resolver drift.
+- Failure attribution contract:
+  - In multi-arch logs, canceled secondary platform stages MUST NOT be treated as root cause when primary stage reports lockfile mutation.
+
+### 4. Validation & Error Matrix
+- `lockfile had changes, but lockfile is frozen` in Docker step -> missing/stale committed `bun.lock`; regenerate at repo root and commit.
+- Added/changed workspace `package.json` not copied before install -> Docker resolver differs from repo state; update Dockerfile copy list.
+- Local `bun install` passes but frozen fails in CI -> Bun version mismatch; align Bun versions and rerun frozen install locally.
+- Buildx shows `linux/arm64 CANCELED` -> secondary cancellation due to another platform failure; inspect first failing platform logs (often amd64).
+
+### 5. Good/Base/Bad Cases
+- Good:
+  - Developer updates workspace manifest, runs root `bun install`, commits `bun.lock`, local frozen install passes, CI Docker build passes.
+- Base:
+  - No dependency graph changes; frozen install remains deterministic across local and CI.
+- Bad:
+  - Manifest changed without lockfile commit; CI fails at frozen install and noise from other platform cancellation obscures diagnosis.
+
+### 6. Tests Required (with assertion points)
+- Local pre-push assertions:
+  - `bun install --frozen-lockfile` succeeds at repo root.
+  - `git diff --exit-code bun.lock` returns clean after install.
+- Docker assertions:
+  - `docker build -f Dockerfile.hub .` reaches install step without lockfile mutation.
+  - `docker build -f Dockerfile.cli .` reaches install step without lockfile mutation.
+- CI assertions:
+  - `.github/workflows/docker-images.yml` path filter includes lock/manifests and Dockerfiles.
+  - Build matrix fail log triage identifies first failing platform and command.
+
+### 7. Wrong vs Correct
+#### Wrong
+```bash
+# update workspace package.json only
+# push directly and rely on CI to resolve lock drift
+```
+
+#### Correct
+```bash
+# after any dependency graph change
+bun install
+git add bun.lock
+# optional strict check
+bun install --frozen-lockfile
+# then push / open PR
+```
+
+---
+
 ## Scenario: Voice Assistant Decommission Contract (Web + Hub + Shared + Docs)
 
 ### 1. Scope / Trigger
