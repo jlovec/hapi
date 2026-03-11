@@ -57,7 +57,10 @@ For GitHub Actions bot workflows using `openai/codex-action@v1`:
 - Prepare runner-local `codex-home` explicitly before the action step
 - Prefer `${{ runner.temp }}/codex-home` over implicit `~/.codex`
 - Treat `read-server-info` ENOENT as startup/runner-state failure, not prompt failure
-- If a custom `responses-api-endpoint` is configured, verify compatibility before changing prompts
+- If a custom `responses-api-endpoint` is configured, it must be a full Responses API URL ending with `/responses`
+- Do not pass provider root URLs like `https://host/` or partial base URLs like `https://host/v1`
+- In repositories that cannot use the default OpenAI endpoint, fail fast when `OPENAI_BASE_URL` is missing or malformed instead of silently falling back
+- If logs show `stream disconnected before response.completed`, first verify the endpoint path and then verify that the upstream service fully supports Responses streaming semantics
 
 ---
 

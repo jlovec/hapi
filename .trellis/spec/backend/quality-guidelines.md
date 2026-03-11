@@ -131,9 +131,18 @@ bun run build      # Build for production
     engine.getSessions()  // Safe
     ```
 
----
 
-## Required Patterns
+## Bot Integration Contracts
+
+For GitHub Actions that invoke `openai/codex-action@v1`:
+
+- Treat `responses-api-endpoint` as the final Responses API URL, not as a provider base URL.
+- Require custom endpoints to end with `/responses` before the action step runs.
+- Reject malformed values such as `https://host/` or `https://host/v1` in workflow preflight checks.
+- Prefer explicit runner-local `codex-home` setup to avoid hidden dependence on `~/.codex`.
+- When a run still fails with `stream disconnected before response.completed` after URL validation passes, investigate upstream protocol compatibility rather than prompt content first.
+
+---
 
 ### ✅ Always Use
 

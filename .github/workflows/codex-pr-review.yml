@@ -22,12 +22,12 @@ jobs:
       review_result: ${{ steps.run_codex.outputs.final-message }}
 
     steps:
-      - name: Check HAPI Bot review state
+      - name: Check 主神Bot review state
         id: check_bot
         uses: actions/github-script@v7
         with:
           script: |
-            const marker = "*HAPI Bot*";
+            const marker = "*主神Bot*";
             const allowedLogins = (process.env.ZS_BOT_LOGINS || "github-actions[bot]")
               .split(",")
               .map((value) => value.trim())
@@ -76,10 +76,10 @@ jobs:
             core.setOutput("is_follow_up_review", isFollowUpReview ? "true" : "false");
 
             if (hasReviewForCurrentHead) {
-              core.info(`Existing HAPI Bot review found for ${currentHeadSha}; skipping.`);
+              core.info(`Existing 主神Bot review found for ${currentHeadSha}; skipping.`);
             } else if (isFollowUpReview) {
               core.info(
-                `Latest HAPI Bot review was for ${latestBotReview.commit_id}; running follow-up review for ${currentHeadSha}.`
+                `Latest 主神Bot review was for ${latestBotReview.commit_id}; running follow-up review for ${currentHeadSha}.`
               );
             }
         env:
@@ -103,6 +103,49 @@ jobs:
         if: steps.check_bot.outputs.has_review_for_current_head != 'true'
         run: mkdir -p "${{ runner.temp }}/codex-home"
 
+      - name: Validate Codex endpoint
+        id: validate_endpoint
+        if: steps.check_bot.outputs.has_review_for_current_head != 'true'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY is required for openai/codex-action@v1" >&2
+            exit 1
+          fi
+
+          if [ -z "$OPENAI_BASE_URL" ]; then
+            echo "OPENAI_BASE_URL is required in this repository and must point to a full Responses API URL like https://example.com/v1/responses" >&2
+            exit 1
+          fi
+
+          python3 - <<'PY' "$OPENAI_BASE_URL" "$GITHUB_OUTPUT"
+          import sys
+          from urllib.parse import urlparse
+
+          endpoint = sys.argv[1].strip()
+          output_path = sys.argv[2]
+          parsed = urlparse(endpoint)
+
+          if parsed.scheme != "https" or not parsed.netloc:
+              raise SystemExit("OPENAI_BASE_URL must be an https URL")
+
+          path = parsed.path.rstrip("/")
+          if not path.endswith("/responses"):
+              raise SystemExit(
+                  "OPENAI_BASE_URL must be the full Responses API URL and end with /responses, e.g. https://example.com/v1/responses"
+              )
+
+          normalized = parsed._replace(path=path or "/responses").geturl()
+          with open(output_path, "a", encoding="utf-8") as fh:
+              fh.write(f"responses_api_endpoint={normalized}\n")
+              fh.write(f"endpoint_host={parsed.netloc}\n")
+              fh.write(f"endpoint_path={path}\n")
+              fh.write("endpoint_mode=custom\n")
+          print(f"Validated custom Responses endpoint host={parsed.netloc} path={path}")
+          PY
+
       - name: Run Codex for PR Review
         id: run_codex
         if: steps.check_bot.outputs.has_review_for_current_head != 'true'
@@ -116,7 +159,7 @@ jobs:
           IS_FOLLOW_UP_REVIEW: ${{ steps.check_bot.outputs.is_follow_up_review }}
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          responses-api-endpoint: ${{ secrets.OPENAI_BASE_URL }}
+          responses-api-endpoint: ${{ steps.validate_endpoint.outputs.responses_api_endpoint }}
           codex-home: ${{ runner.temp }}/codex-home
           model: ${{ vars.OPENAI_MODEL || 'gpt-5.2-codex' }}
           effort: ${{ vars.OPENAI_EFFORT || 'high' }}
@@ -125,3 +168,14 @@ jobs:
           prompt-file: .github/prompts/codex-pr-review.md
           allow-bots: true
           allow-users: "*"
+
+      - name: Diagnose Codex failure
+        if: failure() && steps.check_bot.outputs.has_review_for_current_head != 'true'
+        run: |
+          echo "workflow=codex-pr-review"
+          echo "endpoint_mode=${{ steps.validate_endpoint.outputs.endpoint_mode }}"
+          echo "endpoint_host=${{ steps.validate_endpoint.outputs.endpoint_host }}"
+          echo "endpoint_path=${{ steps.validate_endpoint.outputs.endpoint_path }}"
+          echo "codex_home=${{ runner.temp }}/codex-home"
+          echo "model=${{ vars.OPENAI_MODEL || 'gpt-5.2-codex' }}"
+          echo "effort=${{ vars.OPENAI_EFFORT || 'high' }}"
