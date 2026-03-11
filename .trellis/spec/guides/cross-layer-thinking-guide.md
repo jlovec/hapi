@@ -130,6 +130,26 @@ Typical failure pattern:
 
 ---
 
+## GitHub Review Trigger Checklist (Branch Push ↔ PR Event Workflow)
+
+When a commit is pushed to an open PR branch but review automation (for example `Codex PR Review`) does not appear to rerun:
+- [ ] Did the branch ref actually advance? Verify with `git ls-remote origin refs/heads/<branch>` instead of relying only on PR UI/`gh pr view`.
+- [ ] Did push-triggered workflows run for the new SHA while `pull_request` / `pull_request_target` workflows did not?
+- [ ] Is the review workflow triggered by PR events (`pull_request` / `pull_request_target`) rather than by `push`?
+- [ ] Are workflow-level filters (`types`, branch filters, labels, draft gating, bot gating) satisfied for the new event?
+- [ ] Did you compare workflow-run history directly (`gh run list`, workflow-specific runs API) instead of inferring from status rollups?
+- [ ] Before concluding "review did not run", did you distinguish branch SHA freshness from PR metadata freshness (`headRefOid`, review aggregation, status rollup)?
+
+Typical failure pattern:
+- `git push` succeeds and branch-level `push` workflows start immediately.
+- Reviewer checks `gh pr view` or PR comments, still sees the previous `headRefOid` and previous bot review.
+- Team misdiagnoses the issue as "push didn't happen" or "review bot failed", when the actual problem is PR-event workflow lag / non-trigger.
+
+Reference executable contract:
+- `backend/quality-guidelines.md` → `Scenario: GitHub PR Review Trigger Contract (Push SHA vs pull_request_target Review)`
+
+---
+
 ## Session-Switch Draft Persistence Checklist (Composer ↔ Session Identity)
 
 When chat composer text should survive switching between sessions:

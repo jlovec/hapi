@@ -898,6 +898,83 @@ if (availability.status === 'degraded') {
 
 ---
 
+## Scenario: GitHub PR Review Trigger Contract (Push SHA vs pull_request_target Review)
+
+### 1. Scope / Trigger
+- Trigger: a developer pushes a new commit to an existing PR branch, but review automation (for example `Codex PR Review`) does not appear to rerun.
+- Why code-spec depth is required:
+  - Git references, PR metadata, workflow triggers, and review comments refresh on different timelines.
+  - A successful branch push does not prove that PR-event workflows (`pull_request` / `pull_request_target`) were emitted or completed.
+  - Debugging can easily stop at the wrong layer (`gh pr view`) unless branch SHA, workflow runs, and event type are validated separately.
+
+### 2. Signatures
+- Branch freshness signature:
+  - `git rev-parse HEAD`
+  - `git ls-remote origin refs/heads/<branch>`
+- PR metadata signature:
+  - `gh pr view <number> --json headRefOid,updatedAt,statusCheckRollup,reviews`
+- Workflow trigger signature:
+  - `.github/workflows/codex-pr-review.yml`
+  - `on: pull_request_target`
+  - `types: [opened, reopened, ready_for_review, synchronize]`
+- Workflow-run verification signature:
+  - `gh run list --branch <branch>`
+  - `gh api repos/<owner>/<repo>/actions/workflows/<workflow>/runs?...`
+
+### 3. Contracts
+- Push contract:
+  - if `git ls-remote` shows the new SHA on the remote branch, the push succeeded regardless of stale PR UI data.
+- Trigger contract:
+  - a workflow triggered only by `pull_request` / `pull_request_target` MUST NOT be inferred from `push` workflow activity.
+- Verification contract:
+  - workflow-run history is the source of truth for whether review automation ran; `statusCheckRollup` is only a lagging aggregate view.
+- Triage contract:
+  - when review automation seems missing, distinguish three states explicitly:
+    1. push failed,
+    2. push succeeded but PR metadata is stale,
+    3. push succeeded but the PR event workflow did not trigger.
+
+### 4. Validation & Error Matrix
+- Local HEAD != remote branch SHA -> push failed or wrong branch pushed.
+- Local HEAD == remote branch SHA, but no new `push` run -> Actions dispatch problem or branch mismatch.
+- New `push` run exists, but no new `pull_request_target` run -> review workflow did not trigger for the PR event path.
+- PR `headRefOid` still points to old SHA while branch ref already advanced -> PR metadata / review aggregation lag; do not treat this as push failure.
+- Reviewer reads only PR comments/status rollup -> false conclusion that no new commit exists.
+
+### 5. Good/Base/Bad Cases
+- Good:
+  - remote branch SHA matches local HEAD, workflow-specific runs confirm whether `push` and `pull_request_target` both fired, and diagnosis names the exact missing layer.
+- Base:
+  - `gh pr view` may lag, but branch ref and workflow-run APIs are checked before conclusions are drawn.
+- Bad:
+  - team assumes "no new review" means "commit not pushed" without checking remote branch SHA or workflow trigger history.
+
+### 6. Tests Required (with assertion points)
+- Operational assertions:
+  - verify remote branch SHA after push before debugging review bots.
+  - verify workflow-specific run list for the expected event type (`push` vs `pull_request_target`).
+- Review automation assertions:
+  - if workflow is expected on `synchronize`, there should be a new run whose `head_sha` matches the pushed commit.
+- Documentation assertions:
+  - troubleshooting docs must tell engineers to compare branch ref, PR head metadata, and workflow-run history separately.
+
+### 7. Wrong vs Correct
+#### Wrong
+```bash
+# gh pr view still shows old head
+# therefore push must have failed
+```
+
+#### Correct
+```bash
+git rev-parse HEAD
+git ls-remote origin refs/heads/zs-docker
+gh run list --branch zs-docker
+# conclude whether the missing piece is push, PR metadata refresh, or pull_request_target trigger
+```
+
+---
+
 ## Scenario: Docker Build Lockfile Freeze Contract (Bun Workspace CI)
 
 ### 1. Scope / Trigger
