@@ -995,6 +995,91 @@ deferred items: optional cleanup / broader UX / unrelated hardening
 
 ---
 
+## Scenario: Low-ROI Work Control Contract (Stop Signal + Defer Criteria)
+
+### 1. Scope / Trigger
+- Trigger: a fix/feature/refactor continues beyond the point where the original blocker is resolved, accumulating commits that provide diminishing marginal value.
+- Why code-spec depth is required:
+  - Low-ROI work is not a technical bug; it is a **decision-making bug** where no one explicitly asks "should we stop here?"
+  - Each incremental step feels reasonable in isolation, but the cumulative cost (time, review churn, context-switch) exceeds the cumulative benefit.
+  - The work is often framed as "finishing properly" or "being thorough", which makes it psychologically hard to stop even when ROI has dropped to near zero.
+
+### 2. Signatures
+- Blocker-resolution signature:
+  - the original P0 symptom (crash, broken gate, user-facing failure) is already fixed
+  - subsequent commits address: logging, edge cases, refactoring, exhaustive specs, preemptive hardening
+- Effort-escalation signature:
+  - work that was estimated at "1 hour" has now consumed 4+ hours
+  - multiple review cycles for "polish" rather than "correctness"
+- Impact-gap signature:
+  - if you ask "what user-facing behavior changes if we defer this commit?", the answer is "none" or "slightly cleaner internal state"
+- Exit-condition signature:
+  - no one has written down what "done" looks like; work continues until it "feels complete"
+
+### 3. Contracts
+- Stop-signal contract:
+  - once the original blocker is resolved, explicitly ask: "if we stop here, what observable contract breaks?"
+  - if the answer is "none", the remaining work is optional and should be evaluated for ROI before continuing.
+- Defer-criteria contract:
+  - work that improves internal cleanliness, covers hypothetical edge cases, or writes exhaustive specs without changing external behavior SHOULD be deferred unless:
+    1. it is required by a reviewer/CI/user complaint, or
+    2. the cost of deferring (future bug risk, future rework) clearly exceeds the cost of continuing (time, review churn).
+- Done-definition contract:
+  - before starting a fix/feature, write down the exit condition: "done = X symptom resolved + Y contract verified".
+  - if work continues beyond that exit condition, it MUST be justified with a new explicit goal.
+- ROI-comparison contract:
+  - for each additional commit after the blocker is resolved, explicitly compare:
+    - cost of continuing: time, context-switch, review cycles
+    - cost of deferring: future bug risk, future rework
+  - if cost of continuing > cost of deferring, stop and defer.
+
+### 4. Validation & Error Matrix
+- Original blocker resolved, but work continues into polish -> likely low-ROI churn.
+- Work framed as "finishing properly" without a concrete blocker -> likely optional work disguised as required work.
+- Multiple commits that each feel "small" but cumulative ROI is near zero -> likely incremental scope creep.
+- No one can answer "what breaks if we stop here?" with a concrete contract -> likely no observable blocker remains.
+- Effort exceeds estimate by 2x+ but impact remains "internal cleanliness" -> likely diminishing returns.
+
+### 5. Good/Base/Bad Cases
+- Good:
+  - blocker resolved, team explicitly asks "should we stop here?", remaining work is deferred with a clear ROI justification.
+- Base:
+  - blocker resolved, some polish continues, but team writes down the exit condition and stops when it is reached.
+- Bad:
+  - blocker resolved, work continues indefinitely into edge cases, refactoring, exhaustive specs, and preemptive hardening without anyone asking "should we stop?"
+
+### 6. Tests Required (with assertion points)
+- Process assertions:
+  - before starting a fix/feature, write down the exit condition: "done = X symptom resolved + Y contract verified".
+  - after the blocker is resolved, explicitly ask: "if we stop here, what observable contract breaks?"
+- Review assertions:
+  - reviewers should challenge commits that continue beyond the original blocker without a concrete new blocker or ROI justification.
+- Documentation assertions:
+  - specs/guides must record the stop-signal checklist and defer-criteria contract so future work can be evaluated for ROI before continuing.
+
+### 7. Wrong vs Correct
+#### Wrong
+```text
+commit 1: fix publish gate (blocker resolved)
+commit 2: add better logging
+commit 3: cover edge case X
+commit 4: refactor adjacent code
+commit 5: write exhaustive spec
+commit 6: preemptive hardening for hypothetical case Y
+# no one asks "should we stop?" because each step feels "reasonable"
+```
+
+#### Correct
+```text
+commit 1: fix publish gate (blocker resolved)
+# stop and ask: "if we stop here, what observable contract breaks?"
+# answer: "none"
+# defer: better logging, edge case X, refactoring, exhaustive spec, preemptive hardening
+# or: if continuing, write explicit ROI justification for each deferred item
+```
+
+---
+
 ## Scenario: GitHub PR Review Trigger Contract (Push SHA vs pull_request_target Review)
 
 ### 1. Scope / Trigger

@@ -141,6 +141,30 @@ Reference executable contract:
 
 ---
 
+## Low-ROI Work Detection Checklist (Effort ↔ Impact ↔ Stop Signal)
+
+When you are deep into a fix/feature/refactor, periodically check whether the work has turned into low-ROI churn that should be stopped or deferred:
+- [ ] Can you state the **user-facing impact** or **business-critical blocker** this work unblocks in one sentence? If not, is this really P0?
+- [ ] If this work takes 2+ hours and the result is "slightly better internal state" or "more complete spec coverage" without changing external behavior, should it be deferred?
+- [ ] Are you fixing something that **no actual user/reviewer/CI has complained about**, or are you preemptively hardening based on hypothetical edge cases?
+- [ ] If you remove this work entirely, does any **observable contract** break, or does it only affect internal "cleanliness" / "completeness"?
+- [ ] Are you spending time on "making the fix more elegant" or "covering more edge cases" when the original symptom is already resolved?
+- [ ] Did you explicitly compare the **cost of continuing** (time, context-switch, review churn) vs **cost of deferring** (future bug risk, future rework)?
+- [ ] If someone asks "why are we still working on this?", can you answer with a concrete blocker rather than "it feels incomplete"?
+- [ ] Have you written down what **done** looks like for this work, or are you iterating without a clear exit condition?
+
+Typical failure pattern:
+- A fix starts with a clear P0 blocker (for example: publish gate broken, runner crashes).
+- The fix resolves the blocker, but then continues into: better logging, more edge-case coverage, refactoring adjacent code, writing exhaustive specs, preemptive hardening.
+- Each incremental step feels "small" and "reasonable", but the cumulative ROI drops because the original blocker is already resolved.
+- No one explicitly asks "should we stop here?" because the work is framed as "finishing properly" rather than "optional polish".
+- The branch accumulates commits, review cycles, and context-switch cost, but the marginal value of each additional commit is near zero.
+
+Reference executable contract:
+- `backend/quality-guidelines.md` → `Scenario: Low-ROI Work Control Contract (Stop Signal + Defer Criteria)`
+
+---
+
 ## Session-Scoped Client Cache Checklist (Web State ↔ Session Identity)
 
 When UI state is cached across renders (e.g. `useRef`, query fallback, optimistic state):
