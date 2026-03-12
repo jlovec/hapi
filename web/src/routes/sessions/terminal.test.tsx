@@ -231,7 +231,7 @@ describe('TerminalPage paste behavior', () => {
         expect(disconnectMock).toHaveBeenCalledTimes(1)
     })
 
-    it('does not reset terminal when streaming output chunks arrive', () => {
+    it('does not reset terminal when streaming output chunks arrive', async () => {
         renderWithProviders()
         terminalResetSpy.mockClear()
         terminalWriteSpy.mockClear()
@@ -239,9 +239,11 @@ describe('TerminalPage paste behavior', () => {
         onOutputHandler?.('first chunk')
         onOutputHandler?.('second chunk')
 
+        await waitFor(() => {
+            expect(terminalWriteSpy).toHaveBeenNthCalledWith(1, 'first chunk')
+            expect(terminalWriteSpy).toHaveBeenNthCalledWith(2, 'second chunk')
+        })
         expect(terminalResetSpy).not.toHaveBeenCalled()
-        expect(terminalWriteSpy).toHaveBeenNthCalledWith(1, 'first chunk')
-        expect(terminalWriteSpy).toHaveBeenNthCalledWith(2, 'second chunk')
     })
 
     it('closes previous terminal when terminal not found triggers recreation', () => {

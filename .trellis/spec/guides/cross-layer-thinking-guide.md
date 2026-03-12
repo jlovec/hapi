@@ -252,14 +252,18 @@ Source → Transform → Store → Retrieve → Transform → Display
 - [ ] Hub 侧 socket disconnect 时是否仅 `detach`（设 `socketId = null`），而不是立即从 registry 删除？
 - [ ] 同 session 同 terminalId 重新连接时，Hub 是否执行 `reattach` 并返回 `terminal:ready`，而不是再次向 CLI 发送 `terminal:open`？
 - [ ] 若 terminal 已过期/不存在，前端是否自动 `reset` 并创建新终端，同时显示 toast 提示用户？
+- [ ] **恢复型 buffer replay 是否与流式 output append 明确分离？** replay 只应发生在 terminal identity 切换 / 重新挂载恢复阶段，而不是每个新 chunk 到达时。
+- [ ] **任何 replay gate/ref（例如 `replayedBufferRef`）是否只在 session/terminal 切换或显式 reset 时清空？**
 - [ ] 是否有集成测试覆盖：`页面进入 -> 离开 -> 再进入（idle timeout 前）-> 恢复同一 terminalId`？
 - [ ] 是否有测试覆盖：`terminal 已过期 -> 前端收到 not-found -> 自动 reset + toast + 重连`？
+- [ ] **是否有测试覆盖：`first chunk -> second chunk` 只追加新输出，不发生 `reset + full replay`，并且该测试等待了 React state/effect flush？**
 
 典型失败模式：
 - 每次页面进入都生成新 `terminalId`，导致旧终端泄漏且无法恢复输出缓冲。
 - Hub disconnect 时直接删除 terminal registry entry，导致短暂断线后无法 reattach。
 - 重连时重复发送 `terminal:open` 到 CLI，导致 CLI 侧终端实例重复创建。
 - terminal 过期后前端无提示，用户不知道为什么终端重置了。
+- **前端把 replay effect 依赖到 `outputBuffer`，每个 output chunk 到达时都先 `terminal.reset()` 再重放整段历史缓冲，导致终端闪烁、重复输出和性能退化。**
 
 参考可执行契约：
 - `frontend/state-management.md` → `Terminal Session Resume Contract`

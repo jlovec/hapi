@@ -367,6 +367,9 @@ useTerminalSocket(options: {
 - 输出缓冲契约：
   - `outputBuffer` 属于 session 级 store，而不是组件局部 state。
   - 组件重新挂载后，必须先 replay 已缓存 `outputBuffer`，再接收新的 socket output。
+  - **replay 只能用于“恢复 / 初次挂载到既有 session buffer”场景，不得由每次 `outputBuffer` 变更驱动。**
+  - **流式 socket output 必须以增量 append 方式直接写入终端实例，同时把 chunk 追加到 session store；不得在每个 chunk 到来时执行 `terminal.reset()` + 全量 buffer replay。**
+  - **任何 replay gating（例如 `replayedBufferRef`）只能在 `terminalId` 切换、session 切换或显式 reset 后清空；不得在普通输出 chunk 到达时重置。**
   - buffer 需要有最大长度限制，避免无界增长。
 
 - 过期恢复契约：
@@ -385,15 +388,18 @@ useTerminalSocket(options: {
 - hook 收到普通 `terminal:error`（非 `Terminal not found.`）-> 显示 error 状态，但不得悄悄重建 terminal。
 - `token/sessionId/terminalId` 任一缺失 -> hook 进入 error 状态并显示本地化错误文案。
 - terminal process exit -> 页面显示退出状态；只有显式重连/reset 后才创建新 terminal。
+- **流式 output chunk 到达 -> 只能 append 新 chunk；不得触发 replay effect 的依赖变化从而清空终端并重放全缓冲。**
 
 ### 5. Good / Base / Bad Cases
 
 - Good：
   - 用户进入 terminal 页，离开后 10 秒内返回；页面复用原 `terminalId`，已输出内容被回放，CLI 不会收到第二次 `terminal:open`。
+  - terminal 已恢复后继续收到 `first chunk`、`second chunk`；终端只追加两段新输出，不发生 reset。
 - Base：
   - 用户第一次进入 terminal 页；创建新 terminal，后续输出持续追加到 session store。
 - Bad：
   - 用户只是切到其他页面再回来，就生成新的 `terminalId`，原输出丢失，CLI 又创建了一个新终端实例。
+  - 每个 output chunk 都触发依赖于 `outputBuffer` 的 replay effect，导致 `terminal.reset()` 后整段历史缓冲被反复重放。
 
 ### 6. Tests Required
 
@@ -405,6 +411,8 @@ useTerminalSocket(options: {
   - 断言 terminal 页重新挂载后会 replay 之前 session 的 buffer。
   - 断言收到 `Terminal not found.` 后会触发 reset + reconnect。
   - 断言 reset 成功后显示重启 toast。
+  - **断言连续 output chunk 到达后，只发生增量 `write(chunk)`，不会再次调用 `terminal.reset()`。**
+  - **针对上述流式场景，测试必须等待 React state/effect flush，避免同步断言掩盖 replay 回归。**
 - Component：
   - 断言 terminal 页面按钮/状态 banner 文案来自 i18n key。
 
@@ -413,26 +421,29 @@ useTerminalSocket(options: {
 #### Wrong
 
 ```typescript
-const terminalId = crypto.randomUUID()
-
 useEffect(() => {
-    connect(cols, rows)
-}, [])
+    replayedBufferRef.current = null
+    replayStoredBuffer(terminalRef.current, terminalStateSnapshot.outputBuffer)
+}, [terminalId, terminalStateSnapshot.outputBuffer, replayStoredBuffer])
 ```
 
 #### Correct
 
 ```typescript
-const [terminalStateSnapshot, setTerminalStateSnapshot] = useState(() => getTerminalSessionState(sessionId))
-const terminalId = terminalStateSnapshot.terminalId
+useEffect(() => {
+    replayedBufferRef.current = null
+    replayStoredBuffer(terminalRef.current, terminalStateSnapshot.outputBuffer)
+}, [terminalId, replayStoredBuffer])
 
-const handleTerminalNotFound = useCallback(() => {
-    const nextState = resetTerminalSessionState(sessionId)
-    setTerminalStateSnapshot(nextState)
-    terminalRef.current?.reset()
-    disconnectRef.current()
-}, [sessionId])
+useEffect(() => {
+    onOutput((data) => {
+        const nextState = appendTerminalSessionOutput(sessionId, data)
+        setTerminalStateSnapshot(nextState)
+        terminalRef.current?.write(data)
+    })
+}, [onOutput, sessionId])
 ```
+
 
 **发送一条消息**：
 

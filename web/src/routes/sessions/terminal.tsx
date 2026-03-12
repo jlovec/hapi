@@ -236,7 +236,7 @@ export function TerminalPage() {
     useEffect(() => {
         replayedBufferRef.current = null
         replayStoredBuffer(terminalRef.current, terminalStateSnapshot.outputBuffer)
-    }, [terminalId, terminalStateSnapshot.outputBuffer, replayStoredBuffer])
+    }, [terminalId, replayStoredBuffer])
 
     useEffect(() => {
         onOutput((data) => {

@@ -257,18 +257,29 @@ Typical failure pattern:
 
 ---
 
-## Terminal Session Contract Checklist (Web ↔ Hub ↔ CLI)
-When wiring terminal sessions across layers:
-- [ ] Is `terminalId` scoped per session (no reuse across sessions in the same UI lifecycle)?
-- [ ] Does the Web client reset cached `terminalId` on session change before reconnecting?
-- [ ] Does the Hub remove registry entries on **both** web socket disconnect and CLI socket disconnect?
-- [ ] Is duplicate `terminalId` creation handled as idempotent or surfaced with a clear error?
-- [ ] Are platform constraints (e.g. Windows terminal unsupported) surfaced consistently to the UI?
-- [ ] Is there an integration test covering "reconnect then reopen terminal" without ID collisions?
+## Terminal Session Resume Checklist (Web ↔ Hub ↔ CLI Terminal Lifecycle)
 
-Typical failure pattern:
-- A stale `terminalId` remains registered in the Hub after a disconnect, so the next connect returns
-  "Terminal ID is already in use" even though the UI thinks it is a new session.
+When a terminal page is left and re-entered before idle timeout, validate:
+- [ ] Does the frontend keep a session-scoped `terminalId` per `sessionId`, instead of generating a new ID on every page entry?
+- [ ] On Hub-side socket disconnect, does the registry only `detach` (`socketId = null`) instead of deleting the terminal immediately?
+- [ ] On same-session / same-`terminalId` reconnect, does Hub reattach and emit `terminal:ready` instead of sending a second `terminal:open` to CLI?
+- [ ] If the terminal has expired / disappeared, does the frontend automatically `reset`, create a new terminal, and show a toast?
+- [ ] **Is recovery-time buffer replay clearly separated from streaming output append?** Replay should only happen on terminal identity switch / remount restore, never on every incoming chunk.
+- [ ] **Are replay gate refs (for example `replayedBufferRef`) only cleared on session switch, terminal switch, or explicit reset?**
+- [ ] Is there an integration test for: `enter page -> leave -> re-enter before idle timeout -> same terminalId resumes`?
+- [ ] Is there a test for: `terminal expired -> frontend receives not-found -> auto reset + toast + reconnect`?
+- [ ] **Is there a test for `first chunk -> second chunk` that proves output is only appended (no `reset + full replay`) and waits for React state/effect flush?**
+
+Typical failure patterns:
+- Every page entry generates a new `terminalId`, leaking the old terminal and losing buffered output.
+- Hub deletes registry entry on disconnect, making short-lived reconnects impossible to reattach.
+- Reconnect sends another `terminal:open` to CLI, creating duplicate terminal processes.
+- Terminal expires without user feedback, so the user cannot tell why the terminal was reset.
+- **Frontend ties replay effect dependencies to `outputBuffer`, so every output chunk causes `terminal.reset()` followed by full-history replay, producing flicker, duplicated output, and performance regressions.**
+
+Reference executable contracts:
+- `frontend/state-management.md` → `Terminal Session Resume Contract`
+- `backend/error-handling.md` → `Terminal Socket Lifecycle Contract`
 
 ---
 
