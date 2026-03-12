@@ -96,9 +96,28 @@ When changing slash command discovery, verify:
 Reference executable contract:
 - `backend/quality-guidelines.md` → `Scenario: Slash Command Cross-Layer Contract (Project + Nested)`
 
+## Post-Merge Conflict Contract Checklist (YAML Workflow ↔ Runtime Lifecycle)
+
+When resolving merge conflicts across infra/runtime files, verify the merged result at the contract level instead of only removing conflict markers:
+- [ ] For GitHub Actions YAML, do all `needs:` references still point to real jobs after the merge?
+- [ ] For publish workflows, are smoke/validation steps still ordered before any irreversible artifact push?
+- [ ] For smoke steps, are you validating explicitly prepared candidate images (`--no-build` / injected image tags) rather than rebuilding a fresh local image inside the smoke job?
+- [ ] For runtime availability helpers, did any merged boolean branch collapse `running` / `degraded` / `stale` semantics back into a single `false` path?
+- [ ] For helper changes that answer "healthy and reusable now", did you replay every caller that may skip startup, reuse a process, or suppress recovery work?
+- [ ] After conflict resolution, did you replay the relevant caller chain (`helper -> caller -> side effect`) rather than checking only the edited file?
+- [ ] Is there at least one regression test or static validation that would fail if the merged contract regresses again?
+
+Typical failure pattern:
+- A merge keeps both sides syntactically valid, but changes the contract meaning:
+  - YAML keeps all steps yet points `needs` to a removed job.
+  - Publish flow keeps smoke test logic but moves it after `push: true`.
+  - Availability helper keeps explicit states locally, but caller still interprets the merged return value as "restart now".
+
+Reference executable contracts:
+- `backend/quality-guidelines.md` → `Scenario: Post-Merge Conflict Resolution Contract (Workflow Dependencies + Runtime Availability)`
+
 ---
 
-## Session-Scoped Client Cache Checklist (Web State ↔ Session Identity)
 
 When UI state is cached across renders (e.g. `useRef`, query fallback, optimistic state):
 - [ ] Is cache keyed/scoped by stable identity (`session.id`, `workspaceId`, etc.)?
@@ -110,6 +129,26 @@ When UI state is cached across renders (e.g. `useRef`, query fallback, optimisti
 Typical failure pattern:
 - Previous session status (`Git unavailable` or stale branch counters) remains in ref fallback while new session query is still loading.
 - User sees wrong status until route remount/re-entry forces state reset.
+
+---
+
+## GitHub Review Trigger Checklist (Branch Push ↔ PR Event Workflow)
+
+When a commit is pushed to an open PR branch but review automation (for example `Codex PR Review`) does not appear to rerun:
+- [ ] Did the branch ref actually advance? Verify with `git ls-remote origin refs/heads/<branch>` instead of relying only on PR UI/`gh pr view`.
+- [ ] Did push-triggered workflows run for the new SHA while `pull_request` / `pull_request_target` workflows did not?
+- [ ] Is the review workflow triggered by PR events (`pull_request` / `pull_request_target`) rather than by `push`?
+- [ ] Are workflow-level filters (`types`, branch filters, labels, draft gating, bot gating) satisfied for the new event?
+- [ ] Did you compare workflow-run history directly (`gh run list`, workflow-specific runs API) instead of inferring from status rollups?
+- [ ] Before concluding "review did not run", did you distinguish branch SHA freshness from PR metadata freshness (`headRefOid`, review aggregation, status rollup)?
+
+Typical failure pattern:
+- `git push` succeeds and branch-level `push` workflows start immediately.
+- Reviewer checks `gh pr view` or PR comments, still sees the previous `headRefOid` and previous bot review.
+- Team misdiagnoses the issue as "push didn't happen" or "review bot failed", when the actual problem is PR-event workflow lag / non-trigger.
+
+Reference executable contract:
+- `backend/quality-guidelines.md` → `Scenario: GitHub PR Review Trigger Contract (Push SHA vs pull_request_target Review)`
 
 ---
 
