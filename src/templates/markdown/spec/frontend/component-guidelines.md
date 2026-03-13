@@ -419,6 +419,51 @@ const preventRowSelectHandlers = {
 
 ---
 
+### 场景：主机选择器与会话列表展示一致性
+
+#### 1. 范围 / 触发条件
+- 触发条件：同一个实体（如 machine / host）既出现在列表展示，也出现在表单选择器中。
+- 范围：前端展示层（`web/src/components/*`），尤其是原生 `<select>` 与列表 badge 复用场景。
+
+#### 2. 签名
+
+```typescript
+// 统一文本标签来源
+function getMachineTitle(machine: Machine): string
+
+// 列表 / 详情中的富展示
+<HostBadge
+  displayName={machine.metadata?.displayName}
+  host={machine.metadata?.host}
+  platform={machine.metadata?.platform}
+  machineId={machine.id}
+/>
+```
+
+#### 3. 契约
+- 原生 `<option>` 只能保证文本展示，**不能把 `HostBadge` 的颜色/边框样式视为可移植契约**。
+- 如果业务要求“下拉所有选项与列表 badge 完全同构（含颜色）”，则不得继续使用原生 `<select>`；必须改为自定义 listbox / combobox。
+- 如果当前仍使用原生 `<select>`，则选中态下方**不得再额外重复渲染一份 HostBadge** 来“补偿”样式差异，避免信息重复。
+- 列表页、头部、选择器中的主机文案必须来自同一套 label 计算逻辑（如 `getHostDisplayName` / `getMachineTitle`），避免文案漂移。
+
+#### 4. 校验与错误矩阵
+- 原生 `<select>` + 期望彩色 option -> 需求与平台能力冲突，必须升级为自定义选择器。
+- 原生 `<select>` + 选中后额外 HostBadge -> 会造成重复信息展示，视为 UI 设计错误。
+- 列表使用 HostBadge、选择器使用另一套 host 文案拼接 -> 会造成展示不一致，视为实现错误。
+
+#### 5. 良好 / 基线 / 反例
+- Good：原生 `<select>` 只显示统一文本标签；若需要彩色富展示，整体切到自定义 listbox。
+- Base：列表和选择器都使用相同的文本生成逻辑，但不强求原生 option 样式一致。
+- Bad：保留原生 `<select>`，同时在控件下方重复渲染一个彩色 HostBadge 来弥补 option 无法着色的问题。
+
+#### 6. 必需检查
+- [ ] 先确认当前控件是原生 `<select>` 还是自定义 listbox / combobox。
+- [ ] 如果是原生 `<select>`，不要对 option 样式能力做浏览器不保证的假设。
+- [ ] 同一实体在列表与表单中是否复用了同一份 label 生成逻辑。
+- [ ] 是否为了“补样式”而在控件附近重复渲染选中项摘要。
+
+---
+
 ## 移动端事件处理
 
 ### 触摸事件透传陷阱
