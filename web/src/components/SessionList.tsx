@@ -234,7 +234,7 @@ function SessionItem(props: {
 
     const sessionName = getSessionTitle(s)
     const statusDotClass = s.active
-        ? (s.thinking ? 'bg-[var(--app-link)]' : 'bg-[var(--app-badge-success-text)]')
+        ? (s.thinking ? 'bg-[#007AFF]' : 'bg-[var(--app-badge-success-text)]')
         : 'bg-[var(--app-hint)]'
     return (
         <>
