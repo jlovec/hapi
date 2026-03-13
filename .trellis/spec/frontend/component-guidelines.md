@@ -208,6 +208,28 @@ type ThreadProps = {
 - `--app-link` - 链接/强调色
 - `--app-hint` - 提示/弱化文字
 
+### 状态语义颜色约定
+
+对于“在线 / active / success / error / warning / thinking”这类**状态表达**，必须优先使用专用语义 token，不要复用正文、按钮或链接 token：
+
+```typescript
+// 推荐 - 状态点使用语义 token
+const statusDotClass = s.active
+    ? (s.thinking ? 'bg-[#007AFF]' : 'bg-[var(--app-badge-success-text)]')
+    : 'bg-[var(--app-hint)]'
+
+// 不推荐 - 复用正文/链接 token，主题切换后可能退化成黑/白实心点
+const statusDotClass = s.active
+    ? (s.thinking ? 'bg-[var(--app-link)]' : 'bg-[var(--app-badge-success-text)]')
+    : 'bg-[var(--app-hint)]'
+```
+
+检查清单：
+- 当颜色表达的是“状态”，先确认 token 语义是否真的是状态，而不是文本/按钮/链接。
+- 修改颜色 token 前，先查看该 token 在明暗主题下的实际值，避免 light theme 中退化为黑色、dark theme 中退化为白色。
+- 如果某个状态需要固定品牌色（例如 thinking 蓝点），优先抽成独立语义 token，而不是借用 `--app-link`。
+- 对会话列表、详情页、badge 等多个消费者共享的状态颜色，改动前先回放最近相关 commit，确认不是历史回归修复。
+
 ### `cn()` 工具
 
 组合 className 时始终使用 `cn()`：

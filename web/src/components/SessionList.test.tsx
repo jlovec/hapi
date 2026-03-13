@@ -207,4 +207,34 @@ describe('SessionList action touch behavior', () => {
             })
         )
     })
+
+    it('renders correct status dot colors for different session states', () => {
+        const sessions: SessionSummary[] = [
+            createSession({ id: 'active-thinking', active: true, thinking: true, metadata: { path: '/tmp/project', flavor: 'claude' } }),
+            createSession({ id: 'active-idle', active: true, thinking: false, metadata: { path: '/tmp/project', flavor: 'claude' } }),
+            createSession({ id: 'inactive', active: false, thinking: false, metadata: { path: '/tmp/project', flavor: 'claude' } })
+        ]
+
+        const { container } = render(
+            <SessionList
+                sessions={sessions}
+                onSelect={vi.fn()}
+                onNewSession={vi.fn()}
+                onRefresh={vi.fn()}
+                isLoading={false}
+                api={null}
+                selectedSessionId={null}
+            />
+        )
+
+        const dots = container.querySelectorAll('.rounded-full[class*="bg-"]')
+        expect(dots.length).toBeGreaterThanOrEqual(3)
+
+        // active + thinking: blue (#007AFF)
+        expect(dots[0].className).toContain('bg-[#007AFF]')
+        // active + not thinking: success green
+        expect(dots[1].className).toContain('bg-[var(--app-badge-success-text)]')
+        // inactive: hint gray
+        expect(dots[2].className).toContain('bg-[var(--app-hint)]')
+    })
 })
