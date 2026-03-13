@@ -327,11 +327,6 @@ function SessionItem(props: {
                         {s.metadata?.path ?? s.id}
                     </div>
                 ) : null}
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--app-hint)]">
-                    {s.metadata?.worktree?.branch ? (
-                        <span>{t('session.item.worktree')}: {s.metadata.worktree.branch}</span>
-                    ) : null}
-                </div>
             </div>
 
             <SessionActionMenu
