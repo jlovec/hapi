@@ -305,6 +305,147 @@ When chat input should survive session switches, follow this contract:
 
 ---
 
+## Terminal Session Resume Contract
+
+### 1. Scope / Trigger
+
+- Trigger: User leaves terminal page and re-enters within the same browser tab; terminal should resume the same session before Hub idle timeout expires.
+- Why this needs code-spec depth:
+  - This is a cross-layer state flow: Web session store -> terminal socket hook -> Hub terminal registry -> CLI terminal process.
+  - If session identity, terminal identity, or disconnect semantics are unclear, regressions appear as “terminal resets after route re-entry”.
+
+### 2. Signature
+
+- Frontend session-scoped store:
+
+```typescript
+export type TerminalSessionState = {
+    terminalId: string
+    outputBuffer: string
+    hasEverConnected: boolean
+}
+
+export function getTerminalSessionState(sessionId: string): TerminalSessionState
+export function resetTerminalSessionState(sessionId: string): TerminalSessionState
+export function clearTerminalSessionBuffer(sessionId: string): TerminalSessionState
+export function appendTerminalSessionOutput(sessionId: string, chunk: string): TerminalSessionState
+export function markTerminalSessionConnected(sessionId: string): TerminalSessionState
+```
+
+- Terminal socket hook:
+
+```typescript
+useTerminalSocket(options: {
+    baseUrl: string
+    token: string
+    sessionId: string
+    terminalId: string
+    onTerminalNotFound?: () => void
+}): {
+    state:
+        | { status: 'idle' }
+        | { status: 'connecting' }
+        | { status: 'connected' }
+        | { status: 'reconnecting'; reason: string }
+        | { status: 'error'; error: string }
+    connect: (cols: number, rows: number) => void
+    write: (data: string) => void
+    resize: (cols: number, rows: number) => void
+    disconnect: () => void
+    onOutput: (handler: (data: string) => void) => void
+    onExit: (handler: (code: number | null, signal: string | null) => void) => void
+}
+```
+
+### 3. Contract
+
+- Session identity contract:
+  - `terminalId` is cached per `sessionId`.
+  - Re-entering terminal route within the same tab must reuse the same `terminalId` if Hub has not timed it out yet.
+  - Switching to another session must not reuse previous session's `terminalId` or output buffer.
+
+- Output buffer contract:
+  - `outputBuffer` belongs to session-scoped store, not component-local state.
+  - When component remounts, it must replay cached `outputBuffer` before accepting new socket output.
+  - **Replay must be reserved for recovery / remount-to-existing-buffer only, and must not be driven by every `outputBuffer` change.**
+  - **Streaming socket output must append incrementally to the live terminal instance while also appending the chunk into the session store; it must not run `terminal.reset()` + full-buffer replay for each chunk.**
+  - **Any replay gate/ref (such as `replayedBufferRef`) may only be cleared on `terminalId` switch, session switch, or explicit reset; never on ordinary output arrival.**
+  - Buffer must have a max length cap to avoid unbounded growth.
+
+- Expired-session recovery contract:
+  - When hook receives `terminal:error` with message `Terminal not found.`, it must enter `reconnecting` state.
+  - `onTerminalNotFound` must run: reset terminal store for current session, clear terminal UI, disconnect old socket, generate new `terminalId`, and reconnect.
+  - After new terminal is created successfully, show a toast telling user old terminal expired and a new one was created automatically.
+
+- Text contract:
+  - All user-visible terminal status text must come from i18n keys, not hard-coded strings in hook/page.
+
+### 4. Validation / Error Matrix
+
+- `sessionId` changes -> page-level connection state must reset first, then switch to target session's `TerminalSessionState`.
+- Same session re-entry while registry still has terminal -> must reuse old `terminalId` and restore buffer.
+- Same session re-entry after Hub idle timeout deleted terminal -> must reset store, generate new `terminalId`, and reconnect.
+- Hook receives normal `terminal:error` (not `Terminal not found.`) -> show error state, but do not silently recreate terminal.
+- Missing `token/sessionId/terminalId` -> hook enters error state with localized error copy.
+- Terminal process exit -> page shows exit state; only explicit reconnect/reset creates new terminal.
+- **Streaming output chunk arrival -> only append new chunk; do not trigger a replay effect that clears the terminal and replays full history.**
+
+### 5. Good / Base / Bad Cases
+
+- Good:
+  - User enters terminal page, leaves, and returns 10 seconds later; page reuses old `terminalId`, replays existing output, and CLI does not receive a second `terminal:open`.
+  - After resume, terminal receives `first chunk`, then `second chunk`; UI appends both chunks without any reset.
+- Base:
+  - User enters terminal page for the first time; page creates a new terminal and future output appends to session store.
+- Bad:
+  - User only navigates away and back, but page generates a new `terminalId`, loses old output, and CLI creates a second terminal instance.
+  - Every output chunk retriggers a replay effect via `outputBuffer` dependency, causing `terminal.reset()` and full-history redraw on each chunk.
+
+### 6. Tests Required
+
+- Unit (store):
+  - Assert `getTerminalSessionState(sessionId)` returns stable isolated state per session.
+  - Assert `resetTerminalSessionState(sessionId)` changes `terminalId` and clears buffer/connection marker.
+  - Assert `appendTerminalSessionOutput` keeps only buffer tail and enforces max length.
+- Hook / route integration:
+  - Assert terminal page replay previous session buffer after remount.
+  - Assert receiving `Terminal not found.` triggers reset + reconnect.
+  - Assert reset success shows restart toast.
+  - **Assert consecutive output chunks only cause incremental `write(chunk)` calls and never call `terminal.reset()` again.**
+  - **For this streaming regression, tests must wait for React state/effect flush so synchronous assertions do not hide replay bugs.**
+- Component:
+  - Assert terminal page buttons/status banner text come from i18n keys.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```typescript
+useEffect(() => {
+    replayedBufferRef.current = null
+    replayStoredBuffer(terminalRef.current, terminalStateSnapshot.outputBuffer)
+}, [terminalId, terminalStateSnapshot.outputBuffer, replayStoredBuffer])
+```
+
+#### Correct
+
+```typescript
+useEffect(() => {
+    replayedBufferRef.current = null
+    replayStoredBuffer(terminalRef.current, terminalStateSnapshot.outputBuffer)
+}, [terminalId, replayStoredBuffer])
+
+useEffect(() => {
+    onOutput((data) => {
+        const nextState = appendTerminalSessionOutput(sessionId, data)
+        setTerminalStateSnapshot(nextState)
+        terminalRef.current?.write(data)
+    })
+}, [onOutput, sessionId])
+```
+
+---
+
 ## State Flow Example
 
 **Sending a message**:
