@@ -12,7 +12,7 @@
     },
     "cli": {
       "name": "@jlovec/zhushen",
-      "version": "0.2.2",
+      "version": "0.3.0",
       "bin": {
         "zs": "bin/zs.cjs",
       },
@@ -43,11 +43,11 @@
         "vitest": "^4.0.16",
       },
       "optionalDependencies": {
-        "@jlovec/zhushen-darwin-arm64": "0.2.2",
-        "@jlovec/zhushen-darwin-x64": "0.2.2",
-        "@jlovec/zhushen-linux-arm64": "0.2.2",
-        "@jlovec/zhushen-linux-x64": "0.2.2",
-        "@jlovec/zhushen-win32-x64": "0.2.2",
+        "@jlovec/zhushen-darwin-arm64": "0.3.0",
+        "@jlovec/zhushen-darwin-x64": "0.3.0",
+        "@jlovec/zhushen-linux-arm64": "0.3.0",
+        "@jlovec/zhushen-linux-x64": "0.3.0",
+        "@jlovec/zhushen-win32-x64": "0.3.0",
       },
     },
     "docs": {
@@ -588,15 +588,13 @@
 
     "@jlovec/zhushen": ["@jlovec/zhushen@workspace:cli"],
 
-    "@jlovec/zhushen-darwin-arm64": ["@jlovec/zhushen-darwin-arm64@0.2.2", "", { "os": "darwin", "cpu": "arm64", "bin": { "zs": "bin/zs" } }, "sha512-EVKLW91Lo61tug88XfKCvxOnk5Mcog0DUOzUuhNXXukmEaN42LIfaS916z0KXLTd18U/OlF25Ci6PucM/r8MFw=="],
+    "@jlovec/zhushen-darwin-arm64": ["@jlovec/zhushen-darwin-arm64@0.3.0", "", { "os": "darwin", "cpu": "arm64", "bin": { "zs": "bin/zs" } }, "sha512-ZoZNo/kaHyegWZMnwAxrIJlzzB/4b5/vjjon9aKmPK3Co7dPd5AX4GQZRO6LIGk5nfMKvhkA3DqAUx6lIqrmFg=="],
 
-    "@jlovec/zhushen-darwin-x64": ["@jlovec/zhushen-darwin-x64@0.2.2", "", { "os": "darwin", "cpu": "x64", "bin": { "zs": "bin/zs" } }, "sha512-1vdY4hMZ8C52/W2febp1yGoVczaA+wklLQLxsSOmL4acyGw/1ScjsfMgDLfju2REgKU/zpQrxn5A/viceEdIbg=="],
+    "@jlovec/zhushen-darwin-x64": ["@jlovec/zhushen-darwin-x64@0.3.0", "", { "os": "darwin", "cpu": "x64", "bin": { "zs": "bin/zs" } }, "sha512-0yfbZ3FOslWFXmsyCMmiHJEh9AD9Ybc1MGeIN949ceixmi6eW7/dgU+SsDYtxLAG0AM89HqkEu8Z1X70MrJuRg=="],
 
-    "@jlovec/zhushen-linux-arm64": ["@jlovec/zhushen-linux-arm64@0.2.2", "", { "os": "linux", "cpu": "arm64", "bin": { "zs": "bin/zs" } }, "sha512-mZFeHAqJhR6kMm8RysyaJBquyC83AdfsnMqI9HA9mfmvynMD2cqrpkwez/0IkGCg8Xsw/zeZuPThOQoZietgwA=="],
+    "@jlovec/zhushen-linux-arm64": ["@jlovec/zhushen-linux-arm64@0.3.0", "", { "os": "linux", "cpu": "arm64", "bin": { "zs": "bin/zs" } }, "sha512-hThZ2zGZ3LYCVkVHPXcYJXrD6iySNgpoZfylrBFZQKj9EjqfL3Pfw590buflKt5//Qqy4NrV6UDlmjT3YM1Q2A=="],
 
-    "@jlovec/zhushen-linux-x64": ["@jlovec/zhushen-linux-x64@0.2.2", "", { "os": "linux", "cpu": "x64", "bin": { "zs": "bin/zs" } }, "sha512-BSYy72LvjDosoLP8PVqkG1mz/ouYjV+lBwVyW8pMXthEaTePRpBowiYF+N5cNJ7wu+keNYQ51PcW1cGIruH5sg=="],
-
-    "@jlovec/zhushen-win32-x64": ["@jlovec/zhushen-win32-x64@0.2.2", "", { "os": "win32", "cpu": "x64", "bin": { "zs": "bin/zs.exe" } }, "sha512-1H1wGaIUENDtJDYjLHllzEOAMwWlZUuDAs+5OeIRzAQYedJJIv9LolPBnvFLLexiPMO+24r8nik/7/0JHo6tBw=="],
+    "@jlovec/zhushen-linux-x64": ["@jlovec/zhushen-linux-x64@0.3.0", "", { "os": "linux", "cpu": "x64", "bin": { "zs": "bin/zs" } }, "sha512-80/Fc7vgCj0ped9nnhBS8sxlCeGWNKhujYT0ybCh12TP0p5DlXo0sCsg00ACEkRqCzLx7//O9QngqJz81KBGWg=="],
 
     "@jridgewell/gen-mapping": ["@jridgewell/gen-mapping@0.3.13", "https://mirrors.cloud.tencent.com/npm/@jridgewell/gen-mapping/-/gen-mapping-0.3.13.tgz", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.0", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA=="],
 
