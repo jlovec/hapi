@@ -246,6 +246,174 @@ bun run test
 
 ---
 
+## 案例 3: Lockfile Drift - 依赖锁文件不一致
+
+### 问题描述
+
+CI 中的 `compose-smoke` job 失败，错误信息：
+
+```
+Lockfile precheck (frozen)
+Process completed with exit code 1.
+```
+
+检查步骤：
+```yaml
+- name: Lockfile precheck (frozen)
+  run: |
+    bun install --frozen-lockfile
+    git diff --exit-code bun.lock
+```
+
+### 根本原因
+
+**Category C: Change Propagation Failure（变更传播失败）**
+
+开发者修改了依赖或 `package.json`，但是：
+1. 忘记提交更新后的 `bun.lock` 文件
+2. 或者在不同的 bun 版本下，lockfile 产生了不同的哈希值
+3. 或者 lockfile 不完整/损坏，CI 重新生成后与原文件不同
+
+### 为什么会发生
+
+**常见场景**：
+
+| 场景 | 原因 | 后果 |
+|------|------|------|
+| **忘记提交** | `git add package.json` 但忘记 `git add bun.lock` | CI 检测到不一致 |
+| **版本差异** | 本地 bun 1.3.10，CI bun 1.3.15 | lockfile 格式/哈希不同 |
+| **部分安装** | 只安装了部分 workspace 的依赖 | lockfile 不完整 |
+| **手动编辑** | 直接编辑 lockfile（极少见） | 格式损坏 |
+
+### 预防机制
+
+#### P0: Pre-commit Hook
+
+在 `.git/hooks/pre-commit` 中添加检查：
+
+```bash
+#!/bin/bash
+# 检查 package.json 和 lockfile 是否同步
+
+if git diff --cached --name-only | grep -q "package.json"; then
+  if ! git diff --cached --name-only | grep -q "bun.lock"; then
+    echo "❌ Error: package.json changed but bun.lock not staged"
+    echo "Run: bun install && git add bun.lock"
+    exit 1
+  fi
+fi
+```
+
+#### P0: 开发规范文档
+
+在 `.trellis/spec/backend/quality-guidelines.md` 或前端规范中明确：
+
+**Lockfile 提交规则**：
+- ✅ 修改依赖时，必须同时提交 lockfile
+- ✅ 使用 `bun install` 而不是 `bun add --no-save`
+- ✅ 提交前运行 `bun install` 确保 lockfile 最新
+- ❌ 不要手动编辑 lockfile
+- ❌ 不要在 `.gitignore` 中忽略 lockfile
+
+#### P1: 改进 CI 错误信息
+
+修改 workflow 提供更清晰的错误提示：
+
+```yaml
+- name: Lockfile precheck (frozen)
+  run: |
+    echo "Checking lockfile consistency..."
+    bun install --frozen-lockfile || {
+      echo "❌ Lockfile is out of sync with package.json"
+      echo ""
+      echo "To fix this:"
+      echo "  1. Run: bun install"
+      echo "  2. Commit the updated bun.lock"
+      echo "  3. Push again"
+      exit 1
+    }
+
+    git diff --exit-code bun.lock || {
+      echo "❌ Lockfile was modified during install"
+      echo "This means your committed lockfile is incomplete or uses a different bun version"
+      echo ""
+      echo "To fix this:"
+      echo "  1. Ensure you're using bun >= 1.3.10"
+      echo "  2. Run: bun install"
+      echo "  3. Commit the updated bun.lock"
+      echo "  4. Push again"
+      exit 1
+    }
+```
+
+#### P1: 统一 Bun 版本
+
+在 `package.json` 中已经锁定：
+
+```json
+{
+  "engines": {
+    "bun": ">=1.3.10"
+  }
+}
+```
+
+但考虑更严格的版本范围：
+
+```json
+{
+  "engines": {
+    "bun": "^1.3.10"  // 只允许 1.3.x 版本
+  }
+}
+```
+
+### 修复步骤
+
+当遇到 lockfile precheck 失败时：
+
+```bash
+# 1. 确保使用正确的 bun 版本
+bun --version  # 应该 >= 1.3.10
+
+# 2. 重新生成 lockfile
+bun install
+
+# 3. 检查变更
+git diff bun.lock
+
+# 4. 如果变更合理，提交
+git add bun.lock
+git commit -m "chore: update lockfile"
+git push
+
+# 5. 如果变更异常（大量无关变更），检查 bun 版本
+# 可能需要升级/降级到与 CI 一致的版本
+```
+
+### 系统性扩展
+
+**类似问题**：
+- `package-lock.json` (npm)
+- `yarn.lock` (yarn)
+- `pnpm-lock.yaml` (pnpm)
+- 任何需要"成对提交"的文件：
+  - Database schema + migration files
+  - TypeScript types + implementation
+  - OpenAPI spec + generated code
+
+**设计改进**：
+- 考虑在 `setup-project-env` action 中验证 bun 版本
+- 添加 lockfile 验证脚本到 `package.json` scripts
+- 在 PR template 中添加 lockfile 检查项
+
+**流程改进**：
+- 在开发者 onboarding 文档中强调 lockfile 重要性
+- 考虑添加 pre-push hook（比 pre-commit 更宽松）
+- 在 code review checklist 中添加"lockfile 已更新"项
+
+---
+
 ## 相关资源
 
 - [GitHub Actions 文档](https://docs.github.com/en/actions)
@@ -260,6 +428,13 @@ bun run test
 >
 > 花 10 分钟统一环境配置，可以避免数小时的"为什么 CI 失败"调试时间。
 
+> **Lockfile 是依赖管理的契约。**
+>
+> 修改依赖时忘记提交 lockfile，就像修改 API 接口但不更新文档一样危险。
+
 ---
 
-**最后更新**：2026-03-13（基于 PR#24 的教训）
+**最后更新**：2026-03-16
+- 基于 PR#24 的教训：环境一致性原则
+- 基于 Issue#313-012 的教训：运行时特定依赖的 mock 处理
+- 基于 CI failure (compose-smoke) 的教训：Lockfile drift 预防与修复
