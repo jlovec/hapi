@@ -1,8 +1,12 @@
 /**
- * Download tunwg binaries for all platforms
+ * Download tunwg binaries
  *
  * Downloads pre-built tunwg binaries from GitHub releases.
  * Output directory: hub/tools/tunwg/
+ *
+ * Environment Variables:
+ * - TUNWG_TARGET_PLATFORM: Only download specific platform (e.g., "x64-linux")
+ *                          If not set, downloads all platforms
  */
 
 import { existsSync, mkdirSync, writeFileSync, chmodSync } from 'node:fs';
@@ -37,10 +41,25 @@ async function main(): Promise<void> {
     const scriptDir = dirname(new URL(import.meta.url).pathname);
     const toolsDir = join(scriptDir, '..', 'tools', 'tunwg');
 
-    console.log('Downloading tunwg binaries...\n');
+    // Check if we should only download a specific platform
+    const targetPlatform = process.env.TUNWG_TARGET_PLATFORM;
+    const platformsToDownload = targetPlatform
+        ? { [targetPlatform]: TUNWG_RELEASES[targetPlatform] }
+        : TUNWG_RELEASES;
 
-    // Download all platform binaries
-    for (const [platform, url] of Object.entries(TUNWG_RELEASES)) {
+    if (targetPlatform) {
+        if (!TUNWG_RELEASES[targetPlatform]) {
+            console.error(`Error: Unknown platform "${targetPlatform}"`);
+            console.error(`Available platforms: ${Object.keys(TUNWG_RELEASES).join(', ')}`);
+            process.exit(1);
+        }
+        console.log(`Downloading tunwg binary for platform: ${targetPlatform}\n`);
+    } else {
+        console.log('Downloading tunwg binaries for all platforms...\n');
+    }
+
+    // Download platform binaries
+    for (const [platform, url] of Object.entries(platformsToDownload)) {
         const filename = `tunwg-${platform}${platform.includes('win32') ? '.exe' : ''}`;
         const destPath = join(toolsDir, filename);
 
@@ -49,18 +68,31 @@ async function main(): Promise<void> {
             continue;
         }
 
-        await downloadFile(url, destPath);
+        try {
+            await downloadFile(url, destPath);
 
-        // Make executable on Unix
-        if (!platform.includes('win32')) {
-            chmodSync(destPath, 0o755);
+            // Make executable on Unix
+            if (!platform.includes('win32')) {
+                chmodSync(destPath, 0o755);
+            }
+        } catch (error) {
+            // If downloading a specific platform, fail fast
+            if (targetPlatform) {
+                throw error;
+            }
+            // If downloading all platforms, warn but continue
+            console.error(`Warning: Failed to download ${filename}:`, error);
         }
     }
 
     // Download LICENSE
     const licensePath = join(toolsDir, 'LICENSE');
     if (!existsSync(licensePath)) {
-        await downloadFile(LICENSE_URL, licensePath);
+        try {
+            await downloadFile(LICENSE_URL, licensePath);
+        } catch (error) {
+            console.error('Warning: Failed to download LICENSE:', error);
+        }
     } else {
         console.log('Skipping LICENSE (already exists)');
     }

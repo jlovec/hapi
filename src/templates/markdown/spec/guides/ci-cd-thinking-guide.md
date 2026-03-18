@@ -871,6 +871,22 @@ git push
 
 ---
 
+## Docker 平台依赖最小化（构建目标隔离）
+
+当 Docker 镜像只面向单一平台（如 Linux x64）时：
+
+- **只下载当前构建目标必需的资源**，避免因无关平台资源不可用而阻断构建
+- **推荐做法**：构建脚本支持按平台下载（例如通过环境变量传入目标平台）
+- **风险点**：一次性下载所有平台资源 → 任何一个平台失败都会导致构建失败
+
+**示例（推荐）**：
+```dockerfile
+# 仅下载 Linux x64 资源
+RUN TUNWG_TARGET_PLATFORM=x64-linux bun run download:tunwg
+```
+
+---
+
 ## 相关资源
 
 - [GitHub Actions 文档](https://docs.github.com/en/actions)
