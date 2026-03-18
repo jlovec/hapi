@@ -871,6 +871,22 @@ git push
 
 ---
 
+## Docker 平台依赖最小化（构建目标隔离）
+
+当 Docker 镜像只面向单一平台（如 Linux x64）时：
+
+- **只下载当前构建目标必需的资源**，避免因无关平台资源不可用而阻断构建
+- **推荐做法**：构建脚本支持按平台下载（例如通过环境变量传入目标平台）
+- **风险点**：一次性下载所有平台资源 → 任何一个平台失败都会导致构建失败
+
+**示例（推荐）**：
+```dockerfile
+# 仅下载 Linux x64 资源
+RUN TUNWG_TARGET_PLATFORM=x64-linux bun run download:tunwg
+```
+
+---
+
 ## 相关资源
 
 - [GitHub Actions 文档](https://docs.github.com/en/actions)
@@ -891,9 +907,143 @@ git push
 
 ---
 
-**最后更新**：2026-03-17
+## Docker 构建依赖检查清单（构建脚本 ↔ 外部资源）
+
+当 Docker 镜像构建需要外部资源（二进制文件、下载的资源等）时：
+
+### 核心原则
+
+**Docker 构建必须是自包含的，所有依赖必须在 Dockerfile 中显式获取。**
+
+### 检查清单
+
+- [ ] **构建脚本是否依赖外部文件？**
+  - 检查 `COPY . .` 后构建步骤是否访问项目外的资源
+  - 检查代码中是否有 `import` 或 `require` 指向非版本控制的文件
+
+- [ ] **外部资源是否在 Dockerfile 中下载？**
+  - 如果构建需要下载的资源（二进制文件、依赖包等），必须在 Dockerfile 中显式下载
+  - 不要假设这些文件在 `COPY . .` 时已经存在
+
+- [ ] **是否避免了对无关平台资源的依赖？** ⚠️ **关键**
+  - **反模式**：下载所有平台资源，但只用到其中一个（脆弱点）
+  - **正模式**：只下载当前构建目标必需的资源
+  - 例如：Linux x64 构建不应该依赖 darwin/win 资源的可用性
+
+- [ ] **本地开发与 CI/CD 是否一致？**
+  - 本地 `package.json` scripts 可能包含前置步骤（如 `download:tunwg`）
+  - Dockerfile 必须复制这些步骤，而不是只复制文件
+
+- [ ] **错误信息是否明确？**
+  - 文件不存在时，错误信息应该提示如何获取（如"请运行 bun run download:tunwg"）
+  - 不要只报 "Could not resolve"，要给出解决方案
+
+### 典型失败模式
+
+**案例：Docker runner 构建失败（2026-03-18）**
+
+**问题**：
+```dockerfile
+# Dockerfile.runner
+COPY . .
+RUN cd /app/cli && bun run build:exe --target bun-linux-x64-baseline
+# ❌ 失败：Could not resolve "../../../hub/tools/tunwg/tunwg-x64-linux"
+```
+
+**根本原因**：
+1. `embeddedAssets.bun.ts` 期望导入 `hub/tools/tunwg/tunwg-x64-linux`
+2. 这个文件需要通过 `bun run download:tunwg` 下载
+3. 本地开发时 `package.json` 的 `build:single-exe` script 包含下载步骤
+4. **但 Dockerfile 没有执行下载步骤**，直接开始构建
+
+**错误修复（引入新脆弱点）**：
+```dockerfile
+COPY . .
+
+# ❌ 反模式：下载所有平台资源，但只用到 Linux x64
+# 如果 darwin/win 资源不可用，会阻断 Linux 镜像构建
+RUN bun run download:tunwg
+
+RUN cd /app/cli && bun run build:exe --target bun-linux-x64-baseline
+```
+
+**正确修复（只下载必需资源）**：
+```dockerfile
+COPY . .
+
+# ✅ 正模式：只下载当前构建目标必需的资源
+RUN mkdir -p /app/hub/tools/tunwg \
+    && curl -fsSL https://github.com/tiann/tunwg/releases/latest/download/tunwg \
+       -o /app/hub/tools/tunwg/tunwg-x64-linux \
+    && chmod +x /app/hub/tools/tunwg/tunwg-x64-linux \
+    && curl -fsSL https://raw.githubusercontent.com/tiann/tunwg/refs/heads/main/LICENSE \
+       -o /app/hub/tools/tunwg/LICENSE
+
+RUN cd /app/cli && bun run build:exe --target bun-linux-x64-baseline
+```
+
+**预防**：
+1. 在 Dockerfile 中明确所有外部依赖的获取步骤
+2. **只下载当前构建目标必需的资源，避免无关平台依赖**
+3. 不要依赖 `COPY . .` 包含本地开发时生成的文件
+4. 参考 `package.json` scripts，确保 Dockerfile 包含必要的前置步骤
+
+### 快速验证
+
+```bash
+# 1. 检查代码中是否有导入非常规文件
+grep -r "import.*tunwg\|import.*\.exe\|import.*\.tar\.gz" cli/src/
+
+# 2. 检查 package.json scripts 中是否有下载步骤
+grep -A5 '"scripts"' package.json | grep download
+
+# 3. 验证 Dockerfile 是否包含这些步骤
+grep -n "download\|curl\|wget" Dockerfile.runner
+```
+
+### 设计改进
+
+**反模式**：隐式依赖本地文件
+```dockerfile
+# ❌ 假设文件已经存在
+COPY . .
+RUN bun run build
+```
+
+**正模式**：显式获取依赖
+```dockerfile
+# ✅ 明确下载依赖
+COPY . .
+RUN bun run download:tunwg  # 显式获取外部资源
+RUN bun run build
+```
+
+**正模式**：构建前验证
+```typescript
+// scripts/verify-build-dependencies.ts
+import { existsSync } from 'fs';
+
+const requiredFiles = [
+  'hub/tools/tunwg/tunwg-x64-linux',
+  'hub/tools/tunwg/tunwg-arm64-linux',
+  // ...
+];
+
+for (const file of requiredFiles) {
+  if (!existsSync(file)) {
+    console.error(`❌ Missing required file: ${file}`);
+    console.error(`Please run: bun run download:tunwg`);
+    process.exit(1);
+  }
+}
+```
+
+---
+
+**最后更新**：2026-03-18
 - 基于 PR#24 的教训：环境一致性原则
 - 基于 Issue#313-012 的教训：运行时特定依赖的 mock 处理
 - 基于 CI failure (compose-smoke) 的教训：Lockfile drift 预防与修复
 - 基于 Lockfile drift 循环复现 (0068697 → e91f8f0) 的教训：npm registry 延迟导致的竞态条件，需要在 release-all.ts 中添加等待和验证机制
 - 基于 PR#52 CI 失败的教训：测试稳定性原则 - 涉及定时器的测试必须使用 fake timers 避免时序竞态
+- 基于 Docker runner 构建失败 (2026-03-18) 的教训：Docker 构建必须是自包含的，所有外部依赖必须在 Dockerfile 中显式获取
