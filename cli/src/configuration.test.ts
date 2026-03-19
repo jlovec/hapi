@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { mkdirSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
-import { join } from 'path'
+import { dirname, join } from 'path'
+import { fileURLToPath } from 'url'
+
+const cliDir = dirname(fileURLToPath(new URL('../package.json', import.meta.url)))
+const bunBinary = process.env.BUN_BINARY ?? '/usr/local/bin/bun'
 
 const configurationModulePath = new URL('./configuration.ts', import.meta.url).pathname
 

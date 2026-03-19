@@ -52,6 +52,16 @@ async function waitFor(
   throw new Error('Timeout waiting for condition');
 }
 
+function isLocalApiUrl(apiUrl: string): boolean {
+  const normalized = apiUrl.toLowerCase();
+  return normalized.startsWith('http://localhost:') || normalized.startsWith('http://127.0.0.1:');
+}
+
+function usesIsolatedZhushenHome(homeDir: string): boolean {
+  const defaultHome = join(homedir(), '.zhushen');
+  return homeDir !== defaultHome;
+}
+
 // Check if dev hub is running and properly configured
 async function getIntegrationSkipReason(): Promise<string | null> {
   try {
@@ -277,7 +287,7 @@ describe('Runner Integration Tests', () => {
     // Verify session is tracked
     const sessions = await listRunnerSessions();
     expect(sessions).toHaveLength(1);
-    
+
     const tracked = sessions[0];
     expect(tracked.startedBy).toBe('zs directly - likely by user from terminal');
     expect(tracked.zhushenSessionId).toBe('test-session-123');
@@ -344,7 +354,7 @@ describe('Runner Integration Tests', () => {
     }, 10_000, 200);
   });
 
-  integrationTest('should handle runner stop request gracefully', async () => {    
+  integrationTest('should handle runner stop request gracefully', async () => {
     await stopRunnerHttp();
 
     // Verify metadata file is cleaned up

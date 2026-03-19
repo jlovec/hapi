@@ -16,7 +16,6 @@ import { isRequestUserInputToolName } from '@/components/ToolCard/requestUserInp
 import { getToolPresentation } from '@/components/ToolCard/knownTools'
 import { getToolFullViewComponent, getToolViewComponent } from '@/components/ToolCard/views/_all'
 import { getToolResultViewComponent } from '@/components/ToolCard/views/_results'
-import { ToolDetailModal } from '@/components/ToolCard/ToolDetailModal'
 import { usePointerFocusRing } from '@/shared/hooks/usePointerFocusRing'
 import { getInputString, getInputStringAny, truncate } from '@/lib/toolInputUtils'
 import { cn } from '@/lib/utils'
@@ -90,39 +89,21 @@ function getTaskSummaryChildren(block: ToolCallBlock): { visible: ToolCallBlock[
 
 function renderTaskSummary(
     block: ToolCallBlock,
-    metadata: SessionMetadataSummary | null,
-    onChildClick?: (child: ToolCallBlock, index: number) => void
+    metadata: SessionMetadataSummary | null
 ): ReactNode | null {
     const summary = getTaskSummaryChildren(block)
     if (!summary) return null
 
     const visible = summary.visible
     const remaining = summary.remaining
-    // 计算 visible 中每个子任务在完整 children 列表中的索引
-    const allChildren = block.children
-        .filter((child): child is ToolCallBlock => child.kind === 'tool-call')
-        .filter((child) => child.tool.state === 'pending' || child.tool.state === 'running' || child.tool.state === 'completed' || child.tool.state === 'error')
-    const startIndex = allChildren.length - visible.length
 
     return (
         <div className="flex flex-col gap-1 px-1">
             <div className="flex flex-col gap-1">
-                {visible.map((child, idx) => (
+                {visible.map((child) => (
                     <div
                         key={child.id}
-                        className={cn(
-                            "flex items-center gap-2 rounded px-1 -mx-1",
-                            onChildClick && "cursor-pointer hover:bg-[var(--app-bg-hover)] transition-colors"
-                        )}
-                        onClick={onChildClick ? () => onChildClick(child, startIndex + idx) : undefined}
-                        role={onChildClick ? "button" : undefined}
-                        tabIndex={onChildClick ? 0 : undefined}
-                        onKeyDown={onChildClick ? (e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault()
-                                onChildClick(child, startIndex + idx)
-                            }
-                        } : undefined}
+                        className="flex items-center gap-2 rounded px-1 -mx-1"
                     >
                         <div className="min-w-0 flex-1 font-mono text-xs text-[var(--app-hint)]">
                             <span className="mr-2 inline-block w-4 text-center align-middle">
@@ -310,8 +291,6 @@ type ToolCardProps = {
 
 function ToolCardInner(props: ToolCardProps) {
     const { t } = useTranslation()
-    const [detailModalOpen, setDetailModalOpen] = useState(false)
-    const [selectedChildIndex, setSelectedChildIndex] = useState<number>(0)
 
     const presentation = useMemo(() => getToolPresentation({
         toolName: props.block.tool.name,
@@ -329,27 +308,10 @@ function ToolCardInner(props: ToolCardProps) {
         props.metadata
     ])
 
-    // 获取所有 tool-call 类型的子任务
-    const toolCallChildren = useMemo(() =>
-        props.block.children
-            .filter((child): child is ToolCallBlock => child.kind === 'tool-call')
-            .filter((child) => child.tool.state === 'pending' || child.tool.state === 'running' || child.tool.state === 'completed' || child.tool.state === 'error'),
-        [props.block.children]
-    )
-
-    const handleChildClick = (_child: ToolCallBlock, index: number) => {
-        setSelectedChildIndex(index)
-        setDetailModalOpen(true)
-    }
-
-    const handleNavigate = (newIndex: number) => {
-        setSelectedChildIndex(newIndex)
-    }
-
     const toolName = props.block.tool.name
     const toolTitle = presentation.title
     const subtitle = presentation.subtitle ?? props.block.tool.description
-    const taskSummary = renderTaskSummary(props.block, props.metadata, handleChildClick)
+    const taskSummary = renderTaskSummary(props.block, props.metadata)
     const runningFrom = props.block.tool.startedAt ?? props.block.tool.createdAt
     const showInline = !presentation.minimal && toolName !== 'Task'
     const CompactToolView = showInline ? getToolViewComponent(toolName) : null
@@ -505,19 +467,6 @@ function ToolCardInner(props: ToolCardProps) {
                     )}
                 </CardContent>
             ) : null}
-
-            {/* 子任务详情 Modal */}
-            {toolCallChildren.length > 0 && (
-                <ToolDetailModal
-                    block={toolCallChildren[selectedChildIndex] ?? null}
-                    open={detailModalOpen}
-                    onOpenChange={setDetailModalOpen}
-                    siblings={toolCallChildren}
-                    currentIndex={selectedChildIndex}
-                    onNavigate={handleNavigate}
-                    metadata={props.metadata}
-                />
-            )}
         </Card>
     )
 }

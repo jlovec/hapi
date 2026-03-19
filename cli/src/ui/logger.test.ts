@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test'
 import { mkdirSync, rmSync, writeFileSync, utimesSync } from 'fs'
 import { readFile } from 'fs/promises'
 import { tmpdir } from 'os'
-import { join } from 'path'
+import { dirname, join } from 'path'
+import { fileURLToPath } from 'url'
 
 const loggerModulePath = new URL('./logger.ts', import.meta.url).pathname
 const aliasConfigurationPath = '@/configuration'
