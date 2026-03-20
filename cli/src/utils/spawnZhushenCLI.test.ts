@@ -7,6 +7,27 @@ mock.module('child_process', () => ({
   spawn: spawnMock
 }))
 
+mock.module('@/projectPath', () => ({
+  projectPath: mock(() => '/mock/project'),
+  isBunCompiled: mock(() => false)
+}))
+
+mock.module('@/ui/logger', () => ({
+  logger: {
+    debug: mock()
+  }
+}))
+
+mock.module('node:fs', () => ({
+  existsSync: mock((path: string) => path === '/mock/project/src/index.ts')
+}))
+
+mock.module('cross-spawn', () => ({
+  default: {
+    sync: mock(() => ({ status: 0 }))
+  }
+}))
+
 const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform')
 const originalVersionsDescriptor = Object.getOwnPropertyDescriptor(process, 'versions')
 

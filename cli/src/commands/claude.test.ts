@@ -9,6 +9,23 @@ const mockRunClaude = mock()
 const mockCheckClaudeAuthConfig = mock()
 const mockFormatClaudeAuthConfigError = mock(() => 'missing auth details')
 
+mock.module('zod', () => ({
+    z: {
+        enum: (values: readonly string[]) => ({
+            parse: mock((input: string) => {
+                if (values.includes(input)) {
+                    return input
+                }
+                throw new Error(`Invalid enum value: ${input}`)
+            })
+        })
+    }
+}))
+
+mock.module('@zs/protocol', () => ({
+    PROTOCOL_VERSION: 1
+}))
+
 mock.module('chalk', () => ({
     default: {
         bold: Object.assign(mock((value: string) => value), {

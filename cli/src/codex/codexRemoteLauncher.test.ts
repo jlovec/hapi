@@ -1,11 +1,59 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test'
-import { MessageQueue2 } from '@/utils/MessageQueue2'
-import type { EnhancedMode } from './loop'
 
 const harness = {
   notifications: [] as Array<{ method: string; params: unknown }>,
   registerRequestCalls: [] as string[]
 }
+
+type EnhancedMode = {
+  permissionMode: 'default'
+}
+
+type FakeAgentState = {
+  requests: Record<string, unknown>
+  completedRequests: Record<string, unknown>
+}
+
+mock.module('react', () => ({
+  default: {
+    createElement: mock((_type: unknown, props: unknown) => ({ props }))
+  }
+}))
+
+mock.module('chalk', () => ({
+  default: {
+    gray: mock((value: string) => value),
+    red: mock((value: string) => value),
+    blue: mock((value: string) => value),
+    yellow: mock((value: string) => value)
+  }
+}))
+
+mock.module('ink', () => ({
+  render: mock(() => ({
+    unmount: mock()
+  }))
+}))
+
+mock.module('@/ui/logger', () => ({
+  logger: {
+    debug: mock(),
+    warn: mock(),
+    getLogPath: mock(() => '/tmp/zs-update/test.log')
+  }
+}))
+
+mock.module('@/ui/terminalState', () => ({
+  restoreTerminalState: mock()
+}))
+
+mock.module('@/ui/ink/CodexDisplay', () => ({
+  CodexDisplay: mock(() => null)
+}))
+
+mock.module('@/persistence', () => ({
+  readRunnerState: mock(async () => null)
+}))
 
 mock.module('./codexMcpClient', () => ({
   CodexMcpClient: class MockCodexMcpClient {
@@ -13,6 +61,12 @@ mock.module('./codexMcpClient', () => ({
     async disconnect(): Promise<void> {}
     setHandler(): void {}
     setPermissionHandler(): void {}
+    getSessionId(): string | null {
+      return null
+    }
+    clearSession(): void {}
+    async startSession(): Promise<void> {}
+    async continueSession(): Promise<void> {}
   }
 }))
 
@@ -73,20 +127,14 @@ mock.module('./utils/buildZhushenMcpBridge', () => ({
   })
 }))
 
-import { codexRemoteLauncher } from './codexRemoteLauncher'
-
-type FakeAgentState = {
-  requests: Record<string, unknown>
-  completedRequests: Record<string, unknown>
-}
-
 function createMode(): EnhancedMode {
   return {
     permissionMode: 'default'
   }
 }
 
-function createSessionStub() {
+async function createSessionStub() {
+  const { MessageQueue2 } = await import('@/utils/MessageQueue2')
   const queue = new MessageQueue2<EnhancedMode>((mode) => JSON.stringify(mode))
   queue.push('hello from launcher test', createMode())
   queue.close()
@@ -167,12 +215,13 @@ describe('codexRemoteLauncher', () => {
 
   it('finishes a turn and emits ready when task lifecycle events omit turn_id', async () => {
     delete process.env.CODEX_USE_MCP_SERVER
+    const { codexRemoteLauncher } = await import('./codexRemoteLauncher')
     const {
       session,
       sessionEvents,
       thinkingChanges,
       foundSessionIds
-    } = createSessionStub()
+    } = await createSessionStub()
 
     const exitReason = await codexRemoteLauncher(session as never)
 
