@@ -16,6 +16,20 @@ let hasSelectionMock = false
 let selectionTextMock = ''
 let keyHandler: ((event: KeyboardEvent) => boolean) | null = null
 
+let mockSessionResult: {
+    session: { id: string; active: boolean; metadata: { path: string } } | null
+    isLoading: boolean
+    error: string | null
+} = {
+    session: {
+        id: 'session-1',
+        active: true,
+        metadata: { path: '/tmp/project' }
+    },
+    isLoading: false,
+    error: null,
+}
+
 type TerminalSocketState =
     | { status: 'idle' }
     | { status: 'connecting' }
@@ -44,13 +58,7 @@ vi.mock('@/hooks/useAppGoBack', () => ({
 }))
 
 vi.mock('@/hooks/queries/useSession', () => ({
-    useSession: () => ({
-        session: {
-            id: 'session-1',
-            active: true,
-            metadata: { path: '/tmp/project' }
-        }
-    })
+    useSession: () => mockSessionResult
 }))
 
 vi.mock('@/hooks/useTerminalSocket', () => ({
@@ -128,8 +136,42 @@ describe('TerminalPage paste behavior', () => {
         onOutputHandler = undefined
         terminalWriteSpy.mockReset()
         terminalResetSpy.mockReset()
+        mockSessionResult = {
+            session: {
+                id: 'session-1',
+                active: true,
+                metadata: { path: '/tmp/project' }
+            },
+            isLoading: false,
+            error: null,
+        }
         localStorage.clear()
         localStorage.setItem('zs-lang', 'en')
+    })
+
+    it('shows loading state while session is loading', () => {
+        mockSessionResult = {
+            session: null,
+            isLoading: true,
+            error: null,
+        }
+
+        renderWithProviders()
+
+        expect(screen.getByText('Loading session…')).toBeInTheDocument()
+    })
+
+    it('shows session error instead of infinite loading when session fetch fails', () => {
+        mockSessionResult = {
+            session: null,
+            isLoading: false,
+            error: 'Session unavailable',
+        }
+
+        renderWithProviders()
+
+        expect(screen.getByText('Session unavailable')).toBeInTheDocument()
+        expect(screen.queryByTestId('terminal-view')).toBeNull()
     })
 
     it('does not open manual paste dialog when clipboard text is empty', async () => {

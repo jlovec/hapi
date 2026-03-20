@@ -160,6 +160,8 @@ describe('SessionDetailPage', () => {
         ;(useSession as any).mockReturnValue({
             session: mockSession,
             refetch: vi.fn(),
+            isLoading: false,
+            error: null,
         })
     })
 
@@ -176,9 +178,31 @@ describe('SessionDetailPage', () => {
         expect(screen.getAllByText('Test Session')[0]).toBeInTheDocument()
     })
 
-    it('renders SessionChatView for chat view', () => {
+    it('shows loading state while session is loading', () => {
+        ;(useSession as any).mockReturnValue({
+            session: null,
+            refetch: vi.fn(),
+            isLoading: true,
+            error: null,
+        })
+
         renderWithProviders(<SessionDetailPage />)
-        expect(screen.getAllByTestId('session-chat')[0]).toBeInTheDocument()
+
+        expect(screen.getByTestId('loading-state')).toHaveTextContent('Loading session…')
+    })
+
+    it('shows session error instead of infinite loading when session fetch fails', () => {
+        ;(useSession as any).mockReturnValue({
+            session: null,
+            refetch: vi.fn(),
+            isLoading: false,
+            error: 'HTTP 404 Not Found',
+        })
+
+        renderWithProviders(<SessionDetailPage />)
+
+        expect(screen.getByText('HTTP 404 Not Found')).toBeInTheDocument()
+        expect(screen.queryByTestId('loading-state')).not.toBeInTheDocument()
     })
 })
 
@@ -237,6 +261,20 @@ describe('SessionChatView', () => {
         }))
         renderWithProviders(<SessionChatView />)
         expect(screen.getAllByTestId('session-chat')[0]).toBeInTheDocument()
+    })
+
+    it('shows session error in chat view when session fetch fails', () => {
+        ;(useSession as any).mockReturnValue({
+            session: null,
+            refetch: vi.fn(),
+            isLoading: false,
+            error: 'Session unavailable',
+        })
+
+        renderWithProviders(<SessionChatView />)
+
+        expect(screen.getByText('Session unavailable')).toBeInTheDocument()
+        expect(screen.queryByTestId('loading-state')).not.toBeInTheDocument()
     })
 
     it('handles message sending', () => {

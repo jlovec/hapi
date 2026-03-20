@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import type { FileSearchItem, GitFileStatus } from '@/types/api'
+import { LoadingState } from '@/components/LoadingState'
 import { FileIcon } from '@/components/FileIcon'
 import { DirectoryTree } from '@/components/SessionFiles/DirectoryTree'
 import { useAppContext } from '@/lib/app-context'
@@ -189,7 +190,11 @@ export default function FilesPage() {
     const queryClient = useQueryClient()
     const { sessionId } = useParams({ from: '/sessions/$sessionId/files' })
     const search = useSearch({ from: '/sessions/$sessionId/files' })
-    const { session } = useSession(api, sessionId)
+    const {
+        session,
+        isLoading: sessionLoading,
+        error: sessionError,
+    } = useSession(api, sessionId)
     const [searchQuery, setSearchQuery] = useState('')
 
     const initialTab = search.tab === 'directories' ? 'directories' : 'changes'
@@ -257,6 +262,20 @@ export default function FilesPage() {
             replace: true,
         })
     }, [navigate, sessionId])
+
+    if (!session) {
+        return (
+            <div className="flex h-full items-center justify-center p-4">
+                {sessionLoading ? (
+                    <LoadingState label={t('loading.session')} className="text-sm" />
+                ) : (
+                    <div className="text-sm text-red-600">
+                        {sessionError ?? 'Failed to load session'}
+                    </div>
+                )}
+            </div>
+        )
+    }
 
     return (
         <div className="flex h-full flex-col">

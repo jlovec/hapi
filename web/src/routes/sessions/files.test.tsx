@@ -9,9 +9,13 @@ const invalidateQueriesMock = vi.fn()
 const refetchGitMock = vi.fn()
 
 let mockSearch = {} as { tab?: 'changes' | 'directories' }
-let mockSession = {
-    id: 'session-1',
-    metadata: { path: '/tmp/project' },
+let mockSessionResult = {
+    session: {
+        id: 'session-1',
+        metadata: { path: '/tmp/project' },
+    },
+    isLoading: false,
+    error: null as string | null,
 }
 let mockGitState = {
     status: {
@@ -68,7 +72,7 @@ vi.mock('@/lib/app-context', () => ({
 }))
 
 vi.mock('@/hooks/queries/useSession', () => ({
-    useSession: () => ({ session: mockSession }),
+    useSession: () => mockSessionResult,
 }))
 
 vi.mock('@/hooks/queries/useGitStatusFiles', () => ({
@@ -118,9 +122,13 @@ describe('FilesPage', () => {
     beforeEach(() => {
         vi.clearAllMocks()
         mockSearch = {}
-        mockSession = {
-            id: 'session-1',
-            metadata: { path: '/tmp/project' },
+        mockSessionResult = {
+            session: {
+                id: 'session-1',
+                metadata: { path: '/tmp/project' },
+            },
+            isLoading: false,
+            error: null,
         }
         mockGitState = {
             status: {
@@ -169,5 +177,30 @@ describe('FilesPage', () => {
         expect(screen.queryByText(en['session.git.staged'].replace('{n}', '2'))).toBeNull()
         expect(screen.queryByText(en['session.git.unstaged'].replace('{n}', '1'))).toBeNull()
         expect(screen.queryByText('main')).toBeNull()
+    })
+
+    it('shows loading state while session is loading', () => {
+        mockSessionResult = {
+            session: null,
+            isLoading: true,
+            error: null,
+        }
+
+        renderWithI18n()
+
+        expect(screen.getByText(en['loading.session'])).toBeInTheDocument()
+    })
+
+    it('shows session error instead of file content when session fetch fails', () => {
+        mockSessionResult = {
+            session: null,
+            isLoading: false,
+            error: 'HTTP 404 Not Found',
+        }
+
+        renderWithI18n()
+
+        expect(screen.getByText('HTTP 404 Not Found')).toBeInTheDocument()
+        expect(screen.queryByText('Directory tree')).toBeNull()
     })
 })

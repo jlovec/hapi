@@ -144,6 +144,49 @@ socket.on('connect_error', (error) => {
 
 ---
 
+### Common Issue: Resource Load Failure Rendered as Loading
+
+**Problem Description**:
+When a page depends on a query hook such as `useSession`, the hook may already expose both `isLoading` and `error`, but the page only checks `resource === null` and renders a loading placeholder. On mobile this often looks like the page is stuck forever.
+
+**Forbidden Pattern** ❌:
+```typescript
+const { session, isLoading, error } = useSession(api, sessionId)
+
+if (!session) {
+    return <LoadingState label="Loading session…" />
+}
+```
+
+**Problem**:
+- `session` remains `null` for 404 / 401 / network failures
+- The page never consumes `error`
+- Users only see a spinner instead of an actionable failure state
+
+**Correct Pattern** ✅:
+```typescript
+const { session, isLoading, error } = useSession(api, sessionId)
+
+if (!session) {
+    return isLoading
+        ? <LoadingState label="Loading session…" />
+        : <div className="text-sm text-red-600">{error ?? 'Failed to load session'}</div>
+}
+```
+
+**Where to Apply**:
+- Session detail pages
+- File / terminal routes that depend on session bootstrap
+- Any page-level guard built on `resource === null`
+
+**Checklist**:
+- [ ] Does the page consume both `isLoading` and `error`?
+- [ ] When `resource === null`, does it distinguish loading vs failed?
+- [ ] Is there a user-visible error message instead of spinner-only fallback?
+- [ ] Are both loading and error branches covered by tests?
+
+---
+
 ## HTTP Request Error Handling
 
 ### Status Code Classification
@@ -298,5 +341,5 @@ When implementing error handling, ensure:
 
 ---
 
-**Last Updated**: 2026-03-14
-**Related Issue**: Socket.IO cross-origin access infinite reconnection bug
+**Last Updated**: 2026-03-20
+**Related Issue**: Socket.IO cross-origin access infinite reconnection bug; session detail loading masked fetch error

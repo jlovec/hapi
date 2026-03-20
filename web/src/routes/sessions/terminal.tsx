@@ -159,7 +159,11 @@ export function TerminalPage() {
     const { addToast } = useToast()
     const { sessionId } = useParams({ from: '/sessions/$sessionId/terminal' })
     const { api, token, baseUrl } = useAppContext()
-    const { session } = useSession(api, sessionId)
+    const {
+        session,
+        isLoading: sessionLoading,
+        error: sessionError,
+    } = useSession(api, sessionId)
     const [terminalStateSnapshot, setTerminalStateSnapshot] = useState(() => getTerminalSessionState(sessionId))
     const terminalId = terminalStateSnapshot.terminalId
     const terminalRef = useRef<Terminal | null>(null)
@@ -496,7 +500,13 @@ export function TerminalPage() {
     if (!session) {
         return (
             <div className="flex h-full items-center justify-center">
-                <LoadingState label={t('loading.session')} className="text-sm" />
+                {sessionLoading ? (
+                    <LoadingState label={t('loading.session')} className="text-sm" />
+                ) : (
+                    <div className="text-sm text-red-600">
+                        {sessionError ?? 'Failed to load session'}
+                    </div>
+                )}
             </div>
         )
     }
