@@ -144,6 +144,49 @@ socket.on('connect_error', (error) => {
 
 ---
 
+### 常见问题：资源加载失败被错误显示为 Loading
+
+**问题描述**：
+页面依赖 query hook（如 `useSession`）加载资源时，hook 已经暴露 `isLoading` 与 `error`，但页面组件只判断 `resource === null` 就直接渲染 loading，占位状态会把真实错误吞掉。在移动端这类场景尤其容易被误判为“页面一直转圈”。
+
+**错误示例** ❌：
+```typescript
+const { session, isLoading, error } = useSession(api, sessionId)
+
+if (!session) {
+    return <LoadingState label="Loading session…" />
+}
+```
+
+**问题**：
+- 404 / 401 / 网络失败时，`session` 仍然是 `null`
+- 页面没有消费 `error`
+- 用户只能看到持续 loading，看不到可操作错误
+
+**正确示例** ✅：
+```typescript
+const { session, isLoading, error } = useSession(api, sessionId)
+
+if (!session) {
+    return isLoading
+        ? <LoadingState label="Loading session…" />
+        : <div className="text-sm text-red-600">{error ?? 'Failed to load session'}</div>
+}
+```
+
+**适用范围**：
+- session 详情页
+- 文件页 / terminal 页等依赖 session 前置加载的路由
+- 任何以 `resource === null` 作为入口守卫的页面组件
+
+**检查清单**：
+- [ ] 页面层是否同时消费了 `isLoading` 和 `error`
+- [ ] `resource === null` 时，是否区分“还在加载”与“加载失败”
+- [ ] 是否为错误态提供了用户可见文案，而不是只保留 spinner
+- [ ] 是否有测试覆盖“加载中”和“加载失败”两条分支
+
+---
+
 ## HTTP 请求错误处理
 
 ### 状态码分类

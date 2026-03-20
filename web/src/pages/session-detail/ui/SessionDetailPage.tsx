@@ -25,6 +25,8 @@ export function SessionChatView() {
     const { sessionId } = useParams({ from: '/sessions/$sessionId' })
     const {
         session,
+        isLoading: sessionLoading,
+        error: sessionError,
         refetch: refetchSession,
     } = useSession(api, sessionId)
     const {
@@ -130,7 +132,13 @@ export function SessionChatView() {
     if (!session) {
         return (
             <div className="flex-1 flex items-center justify-center p-4">
-                <LoadingState label="Loading session…" className="text-sm" />
+                {sessionLoading ? (
+                    <LoadingState label="Loading session…" className="text-sm" />
+                ) : (
+                    <div className="text-sm text-red-600">
+                        {sessionError ?? 'Failed to load session'}
+                    </div>
+                )}
             </div>
         )
     }
@@ -166,7 +174,11 @@ export function SessionDetailPage() {
     const pathname = useLocation({ select: location => location.pathname })
     const goBack = useAppGoBack()
     const { sessionId } = useParams({ from: '/sessions/$sessionId' })
-    const { session } = useSession(api, sessionId)
+    const {
+        session,
+        isLoading: sessionLoading,
+        error: sessionError,
+    } = useSession(api, sessionId)
 
     const basePath = `/sessions/${sessionId}`
     const currentView = pathname === basePath || pathname === `${basePath}/`
@@ -202,7 +214,13 @@ export function SessionDetailPage() {
     if (!session) {
         return (
             <div className="flex-1 flex items-center justify-center p-4">
-                <LoadingState label="Loading session…" className="text-sm" />
+                {sessionLoading ? (
+                    <LoadingState label="Loading session…" className="text-sm" />
+                ) : (
+                    <div className="text-sm text-red-600">
+                        {sessionError ?? 'Failed to load session'}
+                    </div>
+                )}
             </div>
         )
     }
