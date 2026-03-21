@@ -1,8 +1,39 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { execFileSync } from 'child_process'
-import { mkdirSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
+
+function resolveRuntimeExecutable(): string {
+  const bunFromEnv = process.env.BUN_BIN
+  if (bunFromEnv && existsSync(bunFromEnv)) {
+    return bunFromEnv
+  }
+
+  try {
+    execFileSync('bun', ['--version'], { stdio: 'ignore' })
+    return 'bun'
+  } catch {
+    if (existsSync(process.execPath)) {
+      return process.execPath
+    }
+    throw new Error('No runnable Bun executable found for test probe')
+  }
+}
+
+const runtimeExecutable = resolveRuntimeExecutable()
+
+function currentCliRoot(): string {
+  return process.cwd()
+}
+
+function probeArgv0(): string {
+  return runtimeExecutable === 'bun' ? 'bun' : runtimeExecutable
+}
+
+function probeCwd(): string {
+  return currentCliRoot()
+}
 
 function createTempHome(): string {
   const home = join(tmpdir(), `zs-config-test-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`)
@@ -11,12 +42,12 @@ function createTempHome(): string {
 }
 
 function readRunnerLogDestination(tempHome: string, extraEnv: NodeJS.ProcessEnv = {}): string {
-  return execFileSync('bun', ['--eval', `
+  return execFileSync(runtimeExecutable, ['--eval', `
     import('./src/configuration.ts').then(({ configuration }) => {
       console.log(configuration.runnerLogDestination)
     })
   `], {
-    cwd: '/data/zhushen-worktrees/0319-c6da/cli',
+    cwd: probeCwd(),
     env: {
       ...process.env,
       ...extraEnv,
