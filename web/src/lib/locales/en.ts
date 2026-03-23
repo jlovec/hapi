@@ -191,6 +191,9 @@ export default {
   // Code block
   'code.copy': 'Copy',
 
+  // Markdown
+  'markdown.mermaidFallback': 'Unable to render Mermaid diagram. Showing source instead.',
+
   // File preview
   'file.binary': 'This looks like a binary file. It cannot be displayed.',
   'file.imagePreviewFailed': 'Failed to load image preview.',

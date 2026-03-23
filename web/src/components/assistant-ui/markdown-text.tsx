@@ -1,20 +1,122 @@
-import type { ComponentPropsWithoutRef } from 'react'
+import type { ComponentPropsWithoutRef, ReactNode } from 'react'
+import { useEffect, useId, useState } from 'react'
+import { defaultSchema } from 'hast-util-sanitize'
+import type { Schema } from 'hast-util-sanitize'
 import {
     MarkdownTextPrimitive,
     unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
     useIsMarkdownCodeBlock,
     type CodeHeaderProps,
+    type MarkdownTextPrimitiveProps,
 } from '@assistant-ui/react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize from 'rehype-sanitize'
+import mermaid from 'mermaid'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/lib/use-translation'
 import { SyntaxHighlighter } from '@/components/assistant-ui/shiki-highlighter'
 import { useCopyToClipboard } from '@/shared/hooks/useCopyToClipboard'
 import { CopyIcon, CheckIcon } from '@/components/icons'
+import 'katex/dist/katex.min.css'
 
-export const MARKDOWN_PLUGINS = [remarkGfm]
+const HTML_ALLOWED_TAG_NAMES = [
+    'abbr',
+    'b',
+    'blockquote',
+    'br',
+    'code',
+    'dd',
+    'del',
+    'details',
+    'div',
+    'dl',
+    'dt',
+    'em',
+    'figcaption',
+    'figure',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'hr',
+    'i',
+    'img',
+    'input',
+    'kbd',
+    'li',
+    'mark',
+    'ol',
+    'p',
+    'picture',
+    'pre',
+    'section',
+    'small',
+    'span',
+    'strong',
+    'sub',
+    'summary',
+    'sup',
+    'table',
+    'tbody',
+    'td',
+    'th',
+    'thead',
+    'tr',
+    'u',
+    'ul',
+] as const
+
+const rehypeSanitizeSchema: Schema = {
+    ...defaultSchema,
+    tagNames: Array.from(new Set([...(defaultSchema.tagNames ?? []), ...HTML_ALLOWED_TAG_NAMES])),
+    attributes: {
+        ...defaultSchema.attributes,
+        a: [
+            ...((defaultSchema.attributes?.a as string[] | undefined) ?? []),
+            'href',
+            'target',
+            'rel',
+            'title',
+        ],
+        code: [...((defaultSchema.attributes?.code as string[] | undefined) ?? []), ['className', /^language-./]],
+        div: [...((defaultSchema.attributes?.div as string[] | undefined) ?? []), 'className'],
+        img: [
+            ...((defaultSchema.attributes?.img as string[] | undefined) ?? []),
+            'src',
+            'alt',
+            'title',
+            'width',
+            'height',
+            'loading',
+        ],
+        input: [
+            ...((defaultSchema.attributes?.input as string[] | undefined) ?? []),
+            'type',
+            'checked',
+            'disabled',
+        ],
+        span: [...((defaultSchema.attributes?.span as string[] | undefined) ?? []), 'className'],
+        '*': [...((defaultSchema.attributes?.['*'] as string[] | undefined) ?? []), 'className'],
+    },
+    clobberPrefix: 'aui-md-',
+}
+
+export const MARKDOWN_REMARK_PLUGINS: NonNullable<MarkdownTextPrimitiveProps['remarkPlugins']> = [remarkGfm, remarkMath]
+
+export const MARKDOWN_REHYPE_PLUGINS: NonNullable<MarkdownTextPrimitiveProps['rehypePlugins']> = [
+    rehypeRaw,
+    [rehypeSanitize, rehypeSanitizeSchema],
+    rehypeKatex,
+]
 
 function CodeHeader(props: CodeHeaderProps) {
     const { copied, copy } = useCopyToClipboard()
+    const { t } = useTranslation()
     const language = props.language && props.language !== 'unknown' ? props.language : ''
 
     return (
@@ -25,8 +127,9 @@ function CodeHeader(props: CodeHeaderProps) {
             <button
                 type="button"
                 onClick={() => copy(props.code)}
-                className="shrink-0 rounded p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
-                title="Copy"
+                className="shrink-0 rounded p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
+                title={t('code.copy')}
+                aria-label={t('code.copy')}
             >
                 {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
             </button>
@@ -191,6 +294,137 @@ function Image(props: ComponentPropsWithoutRef<'img'>) {
     return <img {...props} className={cn('aui-md-img max-w-full rounded', props.className)} />
 }
 
+function Details(props: ComponentPropsWithoutRef<'details'>) {
+    return (
+        <details
+            {...props}
+            className={cn(
+                'aui-md-details rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] px-3 py-2',
+                props.className
+            )}
+        />
+    )
+}
+
+function Summary(props: ComponentPropsWithoutRef<'summary'>) {
+    return (
+        <summary
+            {...props}
+            className={cn('aui-md-summary cursor-pointer font-medium text-[var(--app-fg)]', props.className)}
+        />
+    )
+}
+
+function Figure(props: ComponentPropsWithoutRef<'figure'>) {
+    return <figure {...props} className={cn('aui-md-figure my-3', props.className)} />
+}
+
+function Figcaption(props: ComponentPropsWithoutRef<'figcaption'>) {
+    return (
+        <figcaption
+            {...props}
+            className={cn('aui-md-figcaption mt-2 text-sm text-[var(--app-hint)]', props.className)}
+        />
+    )
+}
+
+function Keyboard(props: ComponentPropsWithoutRef<'kbd'>) {
+    return (
+        <kbd
+            {...props}
+            className={cn(
+                'aui-md-kbd rounded border border-[var(--app-border)] bg-[var(--app-secondary-bg)] px-1.5 py-0.5 font-mono text-[0.85em]',
+                props.className
+            )}
+        />
+    )
+}
+
+function Mark(props: ComponentPropsWithoutRef<'mark'>) {
+    return (
+        <mark
+            {...props}
+            className={cn('aui-md-mark rounded bg-[var(--app-subtle-bg)] px-1 text-[var(--app-fg)]', props.className)}
+        />
+    )
+}
+
+type MermaidDiagramProps = {
+    code: string
+}
+
+function MermaidDiagram({ code }: MermaidDiagramProps) {
+    const { t } = useTranslation()
+    const diagramId = useId()
+    const [svg, setSvg] = useState<string | null>(null)
+    const [hasError, setHasError] = useState(false)
+
+    useEffect(() => {
+        let cancelled = false
+
+        async function renderDiagram() {
+            try {
+                mermaid.initialize({
+                    startOnLoad: false,
+                    securityLevel: 'strict',
+                    theme: 'default',
+                })
+
+                const { svg: renderedSvg } = await mermaid.render(`mermaid-${diagramId}`, code)
+                if (cancelled) return
+                setSvg(renderedSvg)
+                setHasError(false)
+            } catch {
+                if (cancelled) return
+                setSvg(null)
+                setHasError(true)
+            }
+        }
+
+        void renderDiagram()
+
+        return () => {
+            cancelled = true
+        }
+    }, [code, diagramId])
+
+    if (hasError) {
+        return (
+            <div className="aui-md-mermaid-fallback rounded-md border border-[var(--app-border)] bg-[var(--app-code-bg)] p-3">
+                <p className="mb-2 text-sm text-[var(--app-hint)]">{t('markdown.mermaidFallback')}</p>
+                <pre className="m-0 overflow-x-auto text-sm">
+                    <code>{code}</code>
+                </pre>
+            </div>
+        )
+    }
+
+    if (!svg) {
+        return (
+            <div
+                className="aui-md-mermaid-loading rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]"
+                role="status"
+                aria-label={t('misc.loading')}
+            >
+                {t('misc.loading')}
+            </div>
+        )
+    }
+
+    return (
+        <div className="aui-md-mermaid-wrapper overflow-x-auto rounded-md border border-[var(--app-border)] bg-white p-3 dark:bg-[var(--app-code-bg)]">
+            <div
+                className="aui-md-mermaid [&_svg]:h-auto [&_svg]:max-w-full"
+                dangerouslySetInnerHTML={{ __html: svg }}
+            />
+        </div>
+    )
+}
+
+function renderMarkdownClassName(...parts: Array<string | undefined>) {
+    return cn('aui-md min-w-0 max-w-full break-words text-base', ...parts)
+}
+
 export const defaultComponents = memoizeMarkdownComponents({
     SyntaxHighlighter,
     CodeHeader,
@@ -218,14 +452,40 @@ export const defaultComponents = memoizeMarkdownComponents({
     th: Th,
     td: Td,
     img: Image,
+    details: Details,
+    summary: Summary,
+    figure: Figure,
+    figcaption: Figcaption,
+    kbd: Keyboard,
+    mark: Mark,
 } as const)
 
+export const markdownComponentsByLanguage: NonNullable<MarkdownTextPrimitiveProps['componentsByLanguage']> = {
+    mermaid: {
+        SyntaxHighlighter: ({ code }) => <MermaidDiagram code={code} />,
+    },
+}
+
+export function mergeMarkdownComponents(
+    components?: MarkdownTextPrimitiveProps['components']
+): MarkdownTextPrimitiveProps['components'] {
+    return components ? { ...defaultComponents, ...components } : defaultComponents
+}
+
+export function getMarkdownPrimitiveProps(
+    overrides?: Pick<MarkdownTextPrimitiveProps, 'components' | 'className'>
+): MarkdownTextPrimitiveProps {
+    return {
+        remarkPlugins: MARKDOWN_REMARK_PLUGINS,
+        rehypePlugins: MARKDOWN_REHYPE_PLUGINS,
+        components: mergeMarkdownComponents(overrides?.components),
+        componentsByLanguage: markdownComponentsByLanguage,
+        className: renderMarkdownClassName(overrides?.className),
+    }
+}
+
 export function MarkdownText() {
-    return (
-        <MarkdownTextPrimitive
-            remarkPlugins={MARKDOWN_PLUGINS}
-            components={defaultComponents}
-            className={cn('aui-md min-w-0 max-w-full break-words text-base')}
-        />
-    )
+    const markdownProps = getMarkdownPrimitiveProps()
+
+    return <MarkdownTextPrimitive {...markdownProps} smooth={false} />
 }

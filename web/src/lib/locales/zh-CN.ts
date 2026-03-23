@@ -193,6 +193,9 @@ export default {
   // Code block
   'code.copy': '复制',
 
+  // Markdown
+  'markdown.mermaidFallback': 'Mermaid 图表渲染失败，已改为显示源码。',
+
   // File preview
   'file.binary': '这似乎是二进制文件，无法显示。',
   'file.imagePreviewFailed': '图片预览加载失败。',
