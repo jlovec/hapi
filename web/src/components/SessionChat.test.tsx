@@ -1,18 +1,21 @@
 import React from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { SessionChat } from './SessionChat'
+
+const zhushenThreadMock = vi.fn((props?: any) => <div data-testid="zhushen-thread" data-props={JSON.stringify(props ?? {})} />)
+const zhushenComposerMock = vi.fn((props?: any) => <div data-testid="zhushen-composer" data-props={JSON.stringify(props ?? {})} />)
 
 vi.mock('@/components/TeamPanel', () => ({
     TeamPanel: () => null,
 }))
 
 vi.mock('@/components/AssistantChat/ZhushenComposer', () => ({
-    ZhushenComposer: () => <div data-testid="zhushen-composer" />,
+    ZhushenComposer: (props: any) => zhushenComposerMock(props),
 }))
 
 vi.mock('@/components/AssistantChat/ZhushenThread', () => ({
-    ZhushenThread: () => <div data-testid="zhushen-thread" />,
+    ZhushenThread: (props: any) => zhushenThreadMock(props),
 }))
 
 vi.mock('@/lib/assistant-runtime', () => ({
@@ -45,11 +48,11 @@ vi.mock('@/chat/normalize', () => ({
 }))
 
 vi.mock('@/chat/reducer', () => ({
-    reduceChatBlocks: () => ({ blocks: [], latestUsage: null }),
+    reduceChatBlocks: vi.fn(() => ({ blocks: [], latestUsage: null })),
 }))
 
 vi.mock('@/chat/reconcile', () => ({
-    reconcileChatBlocks: () => ({ blocks: [], byId: new Map() }),
+    reconcileChatBlocks: vi.fn(() => ({ blocks: [], byId: new Map() })),
 }))
 
 vi.mock('@assistant-ui/react', async () => {
@@ -90,6 +93,10 @@ function buildSession(active: boolean) {
 }
 
 describe('SessionChat', () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
     it('shows inactive hint only for inactive sessions', () => {
         const { rerender } = render(
             <SessionChat
@@ -110,5 +117,101 @@ describe('SessionChat', () => {
         )
 
         expect(screen.queryByText('Session is inactive. Sending will resume it automatically.')).toBeNull()
+    })
+
+    it('passes thread contract props through the unified chat container', () => {
+        const onRefresh = vi.fn()
+        const onLoadMore = vi.fn(async () => ({}))
+        const onFlushPending = vi.fn()
+        const onAtBottomChange = vi.fn()
+        const messages = [
+            {
+                id: 'msg-1',
+                seq: 1,
+                localId: null,
+                content: { role: 'user', content: { type: 'text', text: 'hello' } },
+                createdAt: 1,
+            },
+            {
+                id: 'msg-2',
+                seq: 2,
+                localId: null,
+                content: { role: 'agent', content: { type: 'text', text: 'world' } },
+                createdAt: 2,
+            },
+        ] as never
+
+        render(
+            <SessionChat
+                {...baseProps}
+                session={buildSession(true)}
+                messages={messages}
+                messagesWarning="warning-text"
+                hasMoreMessages
+                isLoadingMessages
+                isLoadingMoreMessages
+                pendingCount={3}
+                messagesVersion={7}
+                onRefresh={onRefresh}
+                onLoadMore={onLoadMore}
+                onFlushPending={onFlushPending}
+                onAtBottomChange={onAtBottomChange}
+            />
+        )
+
+        const threadProps = zhushenThreadMock.mock.lastCall?.[0]
+        expect(threadProps).toEqual(expect.objectContaining({
+            sessionId: 'active-session',
+            disabled: false,
+            onRefresh,
+            onLoadMore,
+            onFlushPending,
+            onAtBottomChange,
+            isLoadingMessages: true,
+            messagesWarning: 'warning-text',
+            hasMoreMessages: true,
+            isLoadingMoreMessages: true,
+            pendingCount: 3,
+            rawMessagesCount: 2,
+            messagesVersion: 7,
+        }))
+    })
+
+    it('passes reduced normalized message count into thread props', async () => {
+        const messages = [
+            {
+                id: 'msg-1',
+                seq: 1,
+                localId: null,
+                content: { role: 'user', content: { type: 'text', text: 'hello' } },
+                createdAt: 1,
+            },
+            {
+                id: 'msg-2',
+                seq: 2,
+                localId: null,
+                content: { role: 'agent', content: { type: 'text', text: 'hidden' } },
+                createdAt: 2,
+            },
+        ] as never
+
+        const { normalizeDecryptedMessage } = await import('@/chat/normalize')
+        vi.mocked(normalizeDecryptedMessage)
+            .mockReturnValueOnce({ id: 'msg-1' } as never)
+            .mockReturnValueOnce(null)
+
+        render(
+            <SessionChat
+                {...baseProps}
+                session={buildSession(true)}
+                messages={messages}
+            />
+        )
+
+        const threadProps = zhushenThreadMock.mock.lastCall?.[0]
+        expect(threadProps).toEqual(expect.objectContaining({
+            rawMessagesCount: 2,
+            normalizedMessagesCount: 1,
+        }))
     })
 })

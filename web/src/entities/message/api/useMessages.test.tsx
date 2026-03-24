@@ -25,6 +25,7 @@ vi.mock('@/lib/message-window-store', () => {
     return {
         subscribeMessageWindow: vi.fn((sessionId, listener) => () => {}),
         getMessageWindowState: vi.fn(() => mockState),
+        refreshMessageWindow: vi.fn(),
         fetchLatestMessages: vi.fn(),
         fetchOlderMessages: vi.fn(),
         clearMessageWindow: vi.fn(),
@@ -79,7 +80,7 @@ describe('useMessages', () => {
             wrapper: createWrapper(),
         })
 
-        expect(messageWindowStore.fetchLatestMessages).toHaveBeenCalledWith(mockApi, 'session-123')
+        expect(messageWindowStore.refreshMessageWindow).toHaveBeenCalledWith(mockApi, 'session-123')
     })
 
     it('clears message window on unmount', () => {
@@ -149,7 +150,7 @@ describe('useMessages', () => {
 
         await result.current.refetch()
 
-        expect(messageWindowStore.fetchLatestMessages).toHaveBeenCalledTimes(2) // Once on mount, once on refetch
+        expect(messageWindowStore.refreshMessageWindow).toHaveBeenCalledTimes(2) // Once on mount, once on refetch
     })
 
     it('provides flushPending function', async () => {
@@ -162,7 +163,7 @@ describe('useMessages', () => {
         await result.current.flushPending()
 
         expect(messageWindowStore.flushPendingMessages).toHaveBeenCalledWith('session-123')
-        expect(messageWindowStore.fetchLatestMessages).toHaveBeenCalled()
+        expect(messageWindowStore.refreshMessageWindow).toHaveBeenCalled()
     })
 
     it('provides setAtBottom function', () => {
@@ -209,5 +210,56 @@ describe('useMessages', () => {
         expect(result.current.pendingCount).toBe(2)
         expect(result.current.hasMore).toBe(true)
         expect(result.current.warning).toBe('Connection lost')
+    })
+
+    it('derives pendingCount from renderable pending messages in UI layer', () => {
+        vi.mocked(messageWindowStore.getMessageWindowState).mockReturnValue({
+            sessionId: 'session-123',
+            messages: [],
+            pending: [
+                {
+                    id: 'hidden-meta',
+                    seq: 11,
+                    localId: null,
+                    content: {
+                        role: 'agent',
+                        content: {
+                            type: 'output',
+                            data: {
+                                type: 'assistant',
+                                isMeta: true,
+                                message: { content: 'hidden meta message' },
+                            },
+                        },
+                    },
+                    createdAt: Date.now(),
+                },
+                {
+                    id: 'visible-user',
+                    seq: 12,
+                    localId: null,
+                    content: {
+                        role: 'user',
+                        content: { type: 'text', text: 'hello' },
+                    },
+                    createdAt: Date.now(),
+                },
+            ],
+            pendingCount: 3,
+            hasMore: false,
+            oldestSeq: null,
+            newestSeq: null,
+            isLoading: false,
+            isLoadingMore: false,
+            warning: null,
+            atBottom: false,
+            messagesVersion: 0,
+        })
+
+        const { result } = renderHook(() => useMessages(mockApi, 'session-123'), {
+            wrapper: createWrapper(),
+        })
+
+        expect(result.current.pendingCount).toBe(2)
     })
 })

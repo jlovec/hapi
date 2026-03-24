@@ -49,7 +49,7 @@ function normalizeMessagesWithCache(
     return normalized
 }
 
-export function SessionChat(props: {
+export type SessionChatProps = {
     api: ApiClient
     session: Session
     messages: DecryptedMessage[]
@@ -69,7 +69,13 @@ export function SessionChat(props: {
     autocompleteSuggestions?: (query: string) => Promise<Suggestion[]>
     onSlashEntry?: () => void
     isFetchingSlashCommands?: boolean
-}) {
+}
+
+/**
+ * 聊天页面唯一主容器。
+ * SessionChatPanel 仅保留为兼容导出，不再维护独立实现。
+ */
+export function SessionChat(props: SessionChatProps) {
     const { haptic } = usePlatform()
     const sessionInactive = !props.session.active
     const normalizedCacheRef = useRef<Map<string, NormalizedCacheEntry>>(new Map())

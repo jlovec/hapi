@@ -6,6 +6,12 @@ import {
   createToastHandler
 } from './sseCallbacks'
 
+vi.mock('@/lib/message-window-store', () => ({
+  refreshMessageWindow: vi.fn()
+}))
+
+import { refreshMessageWindow } from '@/lib/message-window-store'
+
 describe('createSseConnectHandler', () => {
   it('调用 startSync 并触发 query invalidation', async () => {
     const queryClient = {
@@ -19,9 +25,11 @@ describe('createSseConnectHandler', () => {
       queryClient: queryClient as any,
       startSync,
       endSync,
-      addToast,
       api: null,
-      selectedSessionId: null
+      selectedSessionId: null,
+      setSseDisconnected: vi.fn(),
+      setSseDisconnectReason: vi.fn(),
+      isFirstConnectRef: { current: true }
     })
 
     handler()
@@ -34,27 +42,29 @@ describe('createSseConnectHandler', () => {
     })
   })
 
-  it('当有 selectedSessionId 时 invalidate 会话详情', async () => {
+  it('当有 selectedSessionId 且 api 可用时刷新消息窗口', async () => {
     const queryClient = {
       invalidateQueries: vi.fn().mockResolvedValue(undefined)
     }
     const startSync = vi.fn()
     const endSync = vi.fn()
-    const addToast = vi.fn()
 
+    const api = {} as any
     const handler = createSseConnectHandler({
       queryClient: queryClient as any,
       startSync,
       endSync,
-      addToast,
-      api: null,
-      selectedSessionId: 'session-123'
+      api,
+      selectedSessionId: 'session-123',
+      setSseDisconnected: vi.fn(),
+      setSseDisconnectReason: vi.fn(),
+      isFirstConnectRef: { current: true }
     })
 
     handler()
 
     await vi.waitFor(() => {
-      expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(2)
+      expect(refreshMessageWindow).toHaveBeenCalledWith(api, 'session-123')
     })
   })
 
@@ -71,9 +81,11 @@ describe('createSseConnectHandler', () => {
       queryClient: queryClient as any,
       startSync,
       endSync,
-      addToast,
       api: null,
-      selectedSessionId: null
+      selectedSessionId: null,
+      setSseDisconnected: vi.fn(),
+      setSseDisconnectReason: vi.fn(),
+      isFirstConnectRef: { current: true }
     })
 
     handler()
@@ -98,9 +110,11 @@ describe('createSseConnectHandler', () => {
       queryClient: queryClient as any,
       startSync,
       endSync,
-      addToast,
       api: null,
-      selectedSessionId: null
+      selectedSessionId: null,
+      setSseDisconnected: vi.fn(),
+      setSseDisconnectReason: vi.fn(),
+      isFirstConnectRef: { current: true }
     })
 
     handler()

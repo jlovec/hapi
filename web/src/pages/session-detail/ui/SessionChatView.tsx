@@ -10,7 +10,7 @@ import { useSkills } from '@/hooks/queries/useSkills'
 import { queryKeys } from '@/lib/query-keys'
 import { useToast } from '@/lib/toast-context'
 import { useTranslation } from '@/lib/use-translation'
-import { fetchLatestMessages, seedMessageWindowFromSession } from '@/lib/message-window-store'
+import { hydrateResumedMessageWindow } from '@/lib/message-window-store'
 import { LoadingState } from '@/components/LoadingState'
 
 export function SessionChatView() {
@@ -61,20 +61,17 @@ export function SessionChatView() {
         },
         onSessionResolved: (resolvedSessionId) => {
             void (async () => {
-                if (api) {
-                    if (session && resolvedSessionId !== session.id) {
-                        seedMessageWindowFromSession(session.id, resolvedSessionId)
-                        queryClient.setQueryData(queryKeys.session(resolvedSessionId), {
-                            session: { ...session, id: resolvedSessionId, active: true }
-                        })
-                    }
+                if (api && session && resolvedSessionId !== session.id) {
+                    queryClient.setQueryData(queryKeys.session(resolvedSessionId), {
+                        session: { ...session, id: resolvedSessionId, active: true }
+                    })
                     try {
                         await Promise.all([
                             queryClient.prefetchQuery({
                                 queryKey: queryKeys.session(resolvedSessionId),
                                 queryFn: () => api.getSession(resolvedSessionId),
                             }),
-                            fetchLatestMessages(api, resolvedSessionId),
+                            hydrateResumedMessageWindow(api, session.id, resolvedSessionId),
                         ])
                     } catch {
                     }
