@@ -24,7 +24,7 @@ vi.mock('@/lib/assistant-runtime', () => ({
     useZhushenRuntime: vi.fn(() => ({}))
 }))
 
-vi.mock('@/entities/message/lib/attachmentAdapter', () => ({
+vi.mock('@/lib/attachmentAdapter', () => ({
     createAttachmentAdapter: createAttachmentAdapterMock
 }))
 

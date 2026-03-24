@@ -1,15 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSSE } from '@/hooks/useSSE'
 import { useSyncingState } from '@/hooks/useSyncingState'
 import { useVisibilityReporter } from '@/hooks/useVisibilityReporter'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
-import type { SyncEvent } from '@/types/api'
-import { buildEventSubscription, getSubscriptionKey } from '../lib/subscriptionBuilder'
+import { buildEventSubscription } from '../lib/subscriptionBuilder'
 import { createSseConnectHandler, createSseDisconnectHandler, createSseEventHandler, createToastHandler } from '../lib/sseCallbacks'
 import { usePushNotificationsFirstTime } from '../lib/pushNotificationsHandler'
 
-type ToastEvent = Extract<SyncEvent, { type: 'toast' }>
 
 export interface UseSessionSyncOptions {
   /** SSE 是否启用 */
@@ -55,6 +53,11 @@ export interface SessionSyncState {
  * 3. Visibility reporter 上报
  * 4. Push notification 首次授权/订阅
  * 5. Toast 消息分发
+ *
+ * 边界约定：
+ * - useSessionSync 只负责选择和装配唯一主 callback 实现
+ * - SSE connect/disconnect/toast 的具体行为统一收敛在 ../lib/sseCallbacks
+ * - 消息窗口刷新不得在 hook 内再维护第二套内联语义
  */
 export function useSessionSync(options: UseSessionSyncOptions): SessionSyncState {
   const {
@@ -87,51 +90,26 @@ export function useSessionSync(options: UseSessionSyncOptions): SessionSyncState
     queryClient.clear()
   }, [baseUrl, queryClient])
 
-  // SSE 连接回调
-  const handleSseConnect = useCallback(() => {
-    setSseDisconnected(false)
-    setSseDisconnectReason(null)
+  const handleSseConnect = useMemo(() => createSseConnectHandler({
+    queryClient,
+    startSync,
+    endSync,
+    api,
+    selectedSessionId,
+    setSseDisconnected,
+    setSseDisconnectReason,
+    isFirstConnectRef,
+  }), [queryClient, startSync, endSync, api, selectedSessionId])
 
-    if (isFirstConnectRef.current) {
-      isFirstConnectRef.current = false
-      startSync()
-    } else {
-      startSync()
-    }
+  const handleSseDisconnect = useMemo(() => createSseDisconnectHandler(
+    isFirstConnectRef,
+    setSseDisconnected,
+    setSseDisconnectReason
+  ), [])
 
-    const invalidations = [
-      queryClient.invalidateQueries({ queryKey: ['sessions'] }),
-      ...(selectedSessionId ? [
-        queryClient.invalidateQueries({ queryKey: ['session', selectedSessionId] })
-      ] : [])
-    ]
+  const handleSseEvent = useMemo(() => createSseEventHandler(), [])
 
-    Promise.all(invalidations)
-      .catch((error) => {
-        console.error('Failed to invalidate queries on SSE connect:', error)
-      })
-      .finally(() => {
-        endSync()
-      })
-  }, [queryClient, selectedSessionId, startSync, endSync])
-
-  const handleSseDisconnect = useCallback((reason: string) => {
-    if (!isFirstConnectRef.current) {
-      setSseDisconnected(true)
-      setSseDisconnectReason(reason)
-    }
-  }, [])
-
-  const handleSseEvent = useCallback(() => {}, [])
-
-  const handleToast = useCallback((event: ToastEvent) => {
-    addToast({
-      title: event.data.title,
-      body: event.data.body,
-      sessionId: event.data.sessionId,
-      url: event.data.url
-    })
-  }, [addToast])
+  const handleToast = useMemo(() => createToastHandler(addToast), [addToast])
 
   // SSE 订阅配置
   const eventSubscription = useMemo(() => {

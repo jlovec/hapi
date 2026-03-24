@@ -154,6 +154,59 @@ export function ZhushenChatProvider(props: { value: ZhushenChatContextValue; chi
 
 ---
 
+## 消息窗口状态分层约定
+
+聊天展示相关状态必须按职责拆分，避免“看起来都像 UI 状态”的逻辑散落在多个地方。
+
+### 推荐职责边界
+
+1. **Hub / API 层**：负责持久化消息事实（`sessionId`、`seq`、`createdAt`、`localId`）
+2. **模块级 store**：负责围绕单个 session 的窗口状态（可见消息、pending、overflow、atBottom）
+3. **组件层**：只负责把窗口状态转换成渲染结构（如 chat blocks、thread items）
+4. **局部 ref / memo cache**：只做性能优化，不得改变消息可见性语义
+
+### 必须遵守
+
+- **唯一语义归属**：消息是否进入 pending、何时 flush、如何去重、如何 trim window，必须只有一个层负责。
+- **session 作用域隔离**：模块级 store、`useRef` cache、query fallback 都必须按 `session.id` 隔离；身份切换时先清旧作用域，再计算新状态。
+- **展示优化不得改语义**：`normalize`、`reduce`、`reconcile`、虚拟列表裁剪都只能优化渲染，不能改变消息是否应该出现。
+- **不要在多个层重复 merge**：如果 store 已经定义了窗口消息事实，组件 / query cache 不应再次引入另一套“更聪明”的消息合并规则。
+
+### 典型反例
+
+```typescript
+// Bad：store 决定一部分可见性，组件又决定另一部分可见性
+const pendingResult = mergeIntoPending(state, userMessages)
+const reduced = reduceChatBlocks(normalizedMessages, props.session.agentState)
+```
+
+上面两层都可能改变“用户最终看到什么”，导致展示问题难以定位。
+
+### 推荐落地模式（会话聊天）
+
+围绕聊天窗口的真实约定，推荐固定为下面四层：
+
+1. **持久化消息事实**：Hub / API 返回按 `sessionId + seq` 排序的消息事实。
+2. **窗口状态层**（`message-window-store`）：只负责窗口消息、pending、overflow、`atBottom`、分页与刷新 action；这里维护的是**数据语义**，不是“最终用户看到几条”。
+3. **展示派生层**（如 `useMessages`、`SessionChat`）：负责把窗口状态转换成 UI 需要的派生值，例如“可渲染 pending 数量”“normalized message 列表”“chat blocks”。
+4. **线程 / 组件层**（如 `ZhushenThread`）：只消费已确定的展示输入，不再重写消息进入 pending、是否可见、是否 flush 的规则。
+
+### 聊天重构后新增约束
+
+- `refreshMessageWindow(...)` / `hydrateResumedMessageWindow(...)` 这类“窗口动作语义”应收敛在 store action 中，业务层不要散落直接调用底层 fetch helper。
+- `pendingCount` 如果面向用户提示（例如“新消息数” badge），它属于**展示派生值**，不属于 store 的原始状态字段语义。
+- `normalizeDecryptedMessage(...)`、`reduceChatBlocks(...)`、`reconcileChatBlocks(...)` 属于展示层，不得回流到 store 决定消息事实。
+- `SessionChat` 作为唯一主容器时，`SessionChatPanel` 只保留兼容导出，不再维护第二套聊天展示实现。
+- 会话恢复（resume）应通过单一语义入口完成“seed 旧窗口 + 用服务端事实刷新新窗口”，避免页面层自己拼装多个步骤。
+
+### 推荐检查问题
+
+- 当前新增的是 **store action** 还是 **UI 派生逻辑**？如果两者同时改同一语义，通常说明边界又混了。
+- 某个字段是“原始窗口事实”（例如 pending 原始数量），还是“给用户展示的结果”（例如可见 pending 数）？
+- 如果 session 切换后 UI 泄漏旧消息，应该先查 `message-window-store`、`useMessages` 还是 `SessionChat`？答案应当明确且唯一。
+
+---
+
 ## 何时使用全局状态
 
 **默认优先本地状态。** 只有在以下情况下才提升为全局：

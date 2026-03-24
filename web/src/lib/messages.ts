@@ -1,6 +1,10 @@
 import type { InfiniteData } from '@tanstack/react-query'
 import type { DecryptedMessage, MessagesResponse } from '@/types/api'
 
+/**
+ * 前端消息 merge / optimistic 对账唯一主实现。
+ * entities/message/lib/messages.ts 仅保留兼容 re-export，不再维护副本。
+ */
 export function makeClientSideId(prefix: string): string {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
         return `${prefix}-${crypto.randomUUID()}`

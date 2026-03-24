@@ -1,11 +1,17 @@
 /**
  * SSE 连接回调处理
+ *
+ * 边界约定：
+ * - 本文件是 session-sync 的唯一主 callback 实现
+ * - connect 时统一处理 query invalidation 与 message-window refresh
+ * - hooks.ts 仅负责装配依赖，不再内联维护另一套行为
  */
 
+import type { MutableRefObject } from 'react'
 import type { ApiClient } from '@/api/client'
 import type { SyncEvent } from '@/types/api'
 import { queryKeys } from '@/lib/query-keys'
-import { fetchLatestMessages } from '@/lib/message-window-store'
+import { refreshMessageWindow } from '@/lib/message-window-store'
 
 type ToastEvent = Extract<SyncEvent, { type: 'toast' }>
 
@@ -13,14 +19,11 @@ export interface SseCallbacksOptions {
   queryClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>
   startSync: () => void
   endSync: () => void
-  addToast: (toast: {
-    title: string
-    body?: string
-    sessionId?: string
-    url?: string
-  }) => void
   api: ApiClient | null
   selectedSessionId: string | null
+  setSseDisconnected: (disconnected: boolean) => void
+  setSseDisconnectReason: (reason: string | null) => void
+  isFirstConnectRef: MutableRefObject<boolean>
 }
 
 /**
@@ -32,7 +35,10 @@ export function createSseConnectHandler(options: SseCallbacksOptions) {
     startSync,
     endSync,
     api,
-    selectedSessionId
+    selectedSessionId,
+    setSseDisconnected,
+    setSseDisconnectReason,
+    isFirstConnectRef,
   } = options
 
   let currentSyncToken = 0
@@ -40,8 +46,9 @@ export function createSseConnectHandler(options: SseCallbacksOptions) {
   return () => {
     const syncToken = ++currentSyncToken
 
-    // 首次连接使用强制模式显示 banner
-    const isFirstConnect = syncToken === 1
+    setSseDisconnected(false)
+    setSseDisconnectReason(null)
+    isFirstConnectRef.current = false
     startSync()
 
     const invalidations = [
@@ -52,7 +59,7 @@ export function createSseConnectHandler(options: SseCallbacksOptions) {
     ]
 
     const refreshMessages = (selectedSessionId && api)
-      ? fetchLatestMessages(api, selectedSessionId)
+      ? refreshMessageWindow(api, selectedSessionId)
       : Promise.resolve()
 
     Promise.all([...invalidations, refreshMessages])
@@ -72,7 +79,7 @@ export function createSseConnectHandler(options: SseCallbacksOptions) {
  * 创建 SSE 断开连接回调
  */
 export function createSseDisconnectHandler(
-  isFirstConnectRef: React.MutableRefObject<boolean>,
+  isFirstConnectRef: MutableRefObject<boolean>,
   setSseDisconnected: (disconnected: boolean) => void,
   setSseDisconnectReason: (reason: string | null) => void
 ) {

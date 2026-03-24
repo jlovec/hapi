@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react'
 import type { ApiClient } from '@/api/client'
 import type { DecryptedMessage } from '@/types/api'
+import { normalizeDecryptedMessage } from '@/chat/normalize'
 import {
     clearMessageWindow,
-    fetchLatestMessages,
+    refreshMessageWindow,
     fetchOlderMessages,
     flushPendingMessages,
     getMessageWindowState,
@@ -25,6 +26,16 @@ const EMPTY_STATE: MessageWindowState = {
     warning: null,
     atBottom: true,
     messagesVersion: 0,
+}
+
+function countRenderablePendingMessages(messages: DecryptedMessage[]): number {
+    let count = 0
+    for (const message of messages) {
+        if (normalizeDecryptedMessage(message) !== null) {
+            count += 1
+        }
+    }
+    return count
 }
 
 export function useMessages(api: ApiClient | null, sessionId: string | null): {
@@ -60,7 +71,7 @@ export function useMessages(api: ApiClient | null, sessionId: string | null): {
         if (!api || !sessionId) {
             return
         }
-        void fetchLatestMessages(api, sessionId)
+        void refreshMessageWindow(api, sessionId)
     }, [api, sessionId])
 
     useEffect(() => {
@@ -80,14 +91,14 @@ export function useMessages(api: ApiClient | null, sessionId: string | null): {
 
     const refetch = useCallback(async () => {
         if (!api || !sessionId) return
-        await fetchLatestMessages(api, sessionId)
+        await refreshMessageWindow(api, sessionId)
     }, [api, sessionId])
 
     const flushPending = useCallback(async () => {
         if (!sessionId) return
         const needsRefresh = flushPendingMessages(sessionId)
         if (needsRefresh && api) {
-            await fetchLatestMessages(api, sessionId)
+            await refreshMessageWindow(api, sessionId)
         }
     }, [api, sessionId])
 
@@ -96,13 +107,17 @@ export function useMessages(api: ApiClient | null, sessionId: string | null): {
         setMessageWindowAtBottom(sessionId, atBottom)
     }, [sessionId])
 
+    const pendingCount = useMemo(() => {
+        return countRenderablePendingMessages(state.pending) + Math.max(0, state.pendingCount - state.pending.length)
+    }, [state.pending, state.pendingCount])
+
     return {
         messages: state.messages,
         warning: state.warning,
         isLoading: state.isLoading,
         isLoadingMore: state.isLoadingMore,
         hasMore: state.hasMore,
-        pendingCount: state.pendingCount,
+        pendingCount,
         messagesVersion: state.messagesVersion,
         loadMore,
         refetch,
