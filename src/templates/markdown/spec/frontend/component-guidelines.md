@@ -395,6 +395,7 @@ function getMachineTitle(machine: Machine): string
 #### 3. 契约
 - 原生 `<option>` 只能保证文本展示，**不能把 `HostBadge` 的颜色/边框样式视为可移植契约**。
 - 如果业务要求“下拉所有选项与列表 badge 完全同构（含颜色）”，则不得继续使用原生 `<select>`；必须改为自定义 listbox / combobox。
+- 自定义选择器的 trigger 当前值与下拉选项都必须复用同一套 `HostBadge` / label 逻辑，避免“选中态有颜色、展开态没颜色”或反过来的分裂展示。
 - 如果当前仍使用原生 `<select>`，则选中态下方**不得再额外重复渲染一份 HostBadge** 来“补偿”样式差异，避免信息重复。
 - 列表页、头部、选择器中的主机文案必须来自同一套 label 计算逻辑（如 `getHostDisplayName` / `getMachineTitle`），避免文案漂移。
 
