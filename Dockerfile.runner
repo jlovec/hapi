@@ -106,7 +106,10 @@ RUN apt-get update \
         xz-utils \
         openssh-client \
         gh \
+        glab \
+        docker-cli \
         docker.io \
+        docker-compose \
         wget \
         default-mysql-client \
         redis-tools \
@@ -134,6 +137,8 @@ RUN apt-get update \
         psmisc \
         ripgrep \
         tmux \
+    && mkdir -p /usr/local/lib/docker/cli-plugins \
+    && ln -sf /usr/bin/docker-compose /usr/local/lib/docker/cli-plugins/docker-compose \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=tooling /opt/nvm /opt/nvm

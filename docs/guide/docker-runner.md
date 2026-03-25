@@ -115,6 +115,8 @@ docker run --rm -it \
 - hub 默认 `ZS_HOME=/data/hub`。
 - Claude 配置默认持久化到 `/data/claude`；runner 会优先使用当前环境中的 `HOME`，若未设置则按当前运行用户解析 home，并在启动时自动把 home 下 Claude 入口软链接回 `/data/claude`。
 - `claude` 在镜像构建时已预安装到 PATH，无需额外配置路径。
+- 镜像内同时提供 `docker` CLI 与 `docker compose` 子命令；当前实现基于 Debian 的 `docker.io` + `docker-compose` 包，并在镜像内补了 Docker CLI plugin 兼容入口，因此可以直接执行 `docker compose ...`。
+- `glab` 已预装到 PATH，可直接用于 GitLab API / MR / CI 等命令行操作。
 - runner 镜像构建时只预装 `goenv`，不预装具体 Go 版本；首次使用指定版本时会安装到 `/data/goenv`。
 - Node.js 继续使用 `nvm`，其运行时数据目录已切换到 `/data/nvm`；镜像构建时仅预装默认版本 `24`，当指定其他版本且未安装时，会按现有逻辑自动安装。
 - RTK 全局状态默认仍写入当前用户 home 下的 `.config/rtk`；如果需要持久化 RTK，请单独挂载对应的 XDG 配置目录。
@@ -175,6 +177,31 @@ runner 会优先复用 Claude Code 官方支持的配置入口。
 
 当主神启动 Claude 会话时，会先检查上述认证配置是否存在；如果缺失，会直接给出明确提示，而不是静默写入或覆盖用户配置。
 
+## GitLab CLI（glab）认证
+
+runner 镜像已内置 `glab`，但是否能访问 GitLab 仍取决于你显式提供的认证信息。
+
+常见做法：
+
+- 优先使用 `GITLAB_TOKEN` 作为个人访问令牌（PAT）或 CI token；
+- 如需指定自建 GitLab 实例，可同时设置 `GITLAB_HOST`；
+- 某些脚本或 CI 环境也会使用 `GLAB_TOKEN`，但建议优先统一使用 `GITLAB_TOKEN`，避免同一环境里出现多套命名。
+
+示例：
+
+```bash
+docker run --rm -it \
+  -e GITLAB_TOKEN=glpat-xxxx \
+  -e GITLAB_HOST=gitlab.example.com \
+  zs-runner:local \
+  glab auth status
+```
+
+说明：
+
+- runner 镜像只负责提供 `glab` 可执行文件，不会在启动时主动写入或持久化 GitLab 凭证；
+- 如需长期保存 `glab` 登录状态，请自行挂载对应 home / XDG 配置目录，并按你的安全要求管理 token。
+
 ## 运行时版本选择
 
 容器启动时通过环境变量选择 Go 和 Node.js 版本。
@@ -224,7 +251,9 @@ docker compose run --rm \
 | `wget` | apt | 下载工具 |
 | `git` | apt | 版本控制 |
 | `gh` | apt | GitHub CLI |
+| `glab` | apt | GitLab CLI |
 | `docker` | apt | Docker CLI |
+| `docker compose` | `docker.io` + `docker-compose`（兼容 plugin 入口） | Docker Compose 子命令 |
 | `mysql` | apt | MySQL 客户端 |
 | `redis-cli` | apt | Redis 客户端 |
 | `psql` | apt | PostgreSQL 客户端 |
@@ -278,7 +307,9 @@ docker run --rm zs-runner:local curl --version
 docker run --rm zs-runner:local wget --version
 docker run --rm zs-runner:local git --version
 docker run --rm zs-runner:local gh --version
+docker run --rm zs-runner:local glab --version
 docker run --rm zs-runner:local docker --version
+docker run --rm zs-runner:local docker compose version
 docker run --rm zs-runner:local jq --version
 docker run --rm -e ZS_NODE_VERSION=20 zs-runner:local node -v
 docker run --rm -e ZS_GO_VERSION=1.22.12 zs-runner:local go version

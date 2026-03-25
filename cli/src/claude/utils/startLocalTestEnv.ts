@@ -23,6 +23,18 @@ function isNonEmptyString(value: unknown): value is string {
     return typeof value === 'string' && value.trim().length > 0;
 }
 
+function resolveRequiredConfigValue(envValue: unknown, settingsValue: unknown): string | null {
+    if (isNonEmptyString(envValue)) {
+        return envValue.trim();
+    }
+
+    if (isNonEmptyString(settingsValue)) {
+        return settingsValue.trim();
+    }
+
+    return null;
+}
+
 export function getRepoRoot(): string {
     return dirname(dirname(dirname(dirname(import.meta.dir))));
 }
@@ -54,30 +66,24 @@ export function readClaudeSettingsEnv(settingsPath: string = getClaudeSettingsPa
 }
 
 export function resolveStartupConfig(env: NodeJS.ProcessEnv = process.env, settingsPath?: string): StartupConfig {
+    const resolvedSettingsPath = settingsPath ?? getClaudeSettingsPath();
     const settingsEnv = readClaudeSettingsEnv(settingsPath);
 
-    const anthropicApiKey = isNonEmptyString(env.ANTHROPIC_API_KEY)
-        ? env.ANTHROPIC_API_KEY.trim()
-        : isNonEmptyString(settingsEnv.ANTHROPIC_API_KEY)
-            ? settingsEnv.ANTHROPIC_API_KEY.trim()
-            : null;
+    const anthropicApiKey = resolveRequiredConfigValue(
+        env.ANTHROPIC_API_KEY,
+        settingsEnv.ANTHROPIC_API_KEY
+    );
+    const anthropicBaseUrl = resolveRequiredConfigValue(
+        env.ANTHROPIC_BASE_URL,
+        settingsEnv.ANTHROPIC_BASE_URL
+    );
 
-    const anthropicBaseUrl = isNonEmptyString(env.ANTHROPIC_BASE_URL)
-        ? env.ANTHROPIC_BASE_URL.trim()
-        : isNonEmptyString(settingsEnv.ANTHROPIC_BASE_URL)
-            ? settingsEnv.ANTHROPIC_BASE_URL.trim()
-            : null;
+    const missingKeys = [
+        anthropicApiKey === null ? 'ANTHROPIC_API_KEY' : null,
+        anthropicBaseUrl === null ? 'ANTHROPIC_BASE_URL' : null
+    ].filter((value): value is string => value !== null);
 
-    const missingKeys: string[] = [];
-    if (!anthropicApiKey) {
-        missingKeys.push('ANTHROPIC_API_KEY');
-    }
-    if (!anthropicBaseUrl) {
-        missingKeys.push('ANTHROPIC_BASE_URL');
-    }
-
-    if (missingKeys.length > 0) {
-        const resolvedSettingsPath = settingsPath ?? getClaudeSettingsPath();
+    if (missingKeys.length > 0 || anthropicApiKey === null || anthropicBaseUrl === null) {
         throw new Error(
             `缺少 Claude 启动配置: ${missingKeys.join(', ')}。请先设置环境变量，或在 ${resolvedSettingsPath} 的 .env 中提供对应字段。`
         );
