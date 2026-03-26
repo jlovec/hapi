@@ -112,6 +112,73 @@ export const UpdateMachineBodySchema = z.object({
 
 export type UpdateMachineBody = z.infer<typeof UpdateMachineBodySchema>
 
+export function buildNewMessageUpdate(input: {
+    id: string
+    seq: number
+    createdAt: number
+    sessionId: string
+    message: {
+        id: string
+        seq: number
+        createdAt: number
+        localId?: string | null
+        content: unknown
+    }
+}): Update {
+    return {
+        id: input.id,
+        seq: input.seq,
+        createdAt: input.createdAt,
+        body: {
+            t: 'new-message',
+            sid: input.sessionId,
+            message: input.message,
+        },
+    }
+}
+
+export function buildSessionUpdate(input: {
+    id: string
+    seq: number
+    createdAt: number
+    sessionId: string
+    metadata: { version: number; value: unknown } | null
+    agentState: { version: number; value: unknown | null } | null
+}): Update {
+    return {
+        id: input.id,
+        seq: input.seq,
+        createdAt: input.createdAt,
+        body: {
+            t: 'update-session',
+            sid: input.sessionId,
+            metadata: input.metadata,
+            agentState: input.agentState,
+        },
+    }
+}
+
+export function buildMachineUpdate(input: {
+    id: string
+    seq: number
+    createdAt: number
+    machineId: string
+    metadata: { version: number; value: unknown } | null
+    runnerState: { version: number; value: unknown | null } | null
+}): Update {
+    return {
+        id: input.id,
+        seq: input.seq,
+        createdAt: input.createdAt,
+        body: {
+            t: 'update-machine',
+            machineId: input.machineId,
+            metadata: input.metadata,
+            runnerState: input.runnerState,
+        },
+    }
+}
+
 export const UpdateSchema = z.object({
     id: z.string(),
     seq: z.number(),

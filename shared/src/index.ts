@@ -1,4 +1,5 @@
 export * from './messages'
+export * from './chat-protocol-user-message'
 export * from './modes'
 export * from './socket'
 export * from './sessionSummary'

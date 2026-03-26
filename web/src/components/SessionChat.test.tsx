@@ -5,6 +5,15 @@ import { SessionChat } from './SessionChat'
 
 const zhushenThreadMock = vi.fn((props?: any) => <div data-testid="zhushen-thread" data-props={JSON.stringify(props ?? {})} />)
 const zhushenComposerMock = vi.fn((props?: any) => <div data-testid="zhushen-composer" data-props={JSON.stringify(props ?? {})} />)
+const useChatBlocksMock = vi.fn<(...args: [unknown, unknown, unknown]) => {
+    blocks: unknown[]
+    latestUsage: null
+    normalizedMessagesCount: number
+}>(() => ({
+    blocks: [],
+    latestUsage: null,
+    normalizedMessagesCount: 0,
+}))
 
 vi.mock('@/components/TeamPanel', () => ({
     TeamPanel: () => null,
@@ -43,16 +52,9 @@ vi.mock('@/hooks/mutations/useSessionActions', () => ({
     })
 }))
 
-vi.mock('@/chat/normalize', () => ({
-    normalizeDecryptedMessage: vi.fn(() => null),
-}))
-
-vi.mock('@/chat/reducer', () => ({
-    reduceChatBlocks: vi.fn(() => ({ blocks: [], latestUsage: null })),
-}))
-
-vi.mock('@/chat/reconcile', () => ({
-    reconcileChatBlocks: vi.fn(() => ({ blocks: [], byId: new Map() })),
+vi.mock('@/chat/useChatBlocks', () => ({
+    useChatBlocks: (messages: unknown, sessionId: unknown, agentState: unknown) =>
+        useChatBlocksMock(messages, sessionId, agentState),
 }))
 
 vi.mock('@assistant-ui/react', async () => {
@@ -95,6 +97,11 @@ function buildSession(active: boolean) {
 describe('SessionChat', () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        useChatBlocksMock.mockReturnValue({
+            blocks: [],
+            latestUsage: null,
+            normalizedMessagesCount: 0,
+        })
     })
 
     it('shows inactive hint only for inactive sessions', () => {
@@ -159,6 +166,8 @@ describe('SessionChat', () => {
             />
         )
 
+        expect(useChatBlocksMock).toHaveBeenCalledWith(messages, 'active-session', {})
+
         const threadProps = zhushenThreadMock.mock.lastCall?.[0]
         expect(threadProps).toEqual(expect.objectContaining({
             sessionId: 'active-session',
@@ -177,7 +186,7 @@ describe('SessionChat', () => {
         }))
     })
 
-    it('passes reduced normalized message count into thread props', async () => {
+    it('passes derived normalized message count into thread props', () => {
         const messages = [
             {
                 id: 'msg-1',
@@ -195,10 +204,11 @@ describe('SessionChat', () => {
             },
         ] as never
 
-        const { normalizeDecryptedMessage } = await import('@/chat/normalize')
-        vi.mocked(normalizeDecryptedMessage)
-            .mockReturnValueOnce({ id: 'msg-1' } as never)
-            .mockReturnValueOnce(null)
+        useChatBlocksMock.mockReturnValue({
+            blocks: [],
+            latestUsage: null,
+            normalizedMessagesCount: 1,
+        })
 
         render(
             <SessionChat

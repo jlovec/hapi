@@ -132,9 +132,13 @@ export function createEventsRoutes(
         }
 
         const namespace = c.get('namespace')
-        const updated = tracker.setVisibility(parsed.data.subscriptionId, namespace, parsed.data.visibility)
-        if (!updated) {
-            return c.json({ error: 'Subscription not found' }, 404)
+        const result = tracker.setVisibilityDetailed(parsed.data.subscriptionId, namespace, parsed.data.visibility)
+        if (!result.ok) {
+            return c.json({
+                error: 'Subscription not found',
+                reason: result.reason,
+                trackedNamespace: result.trackedNamespace
+            }, 404)
         }
 
         return c.json({ ok: true })

@@ -1,12 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type { AttachmentMetadata, DecryptedMessage, ModelMode, PermissionMode, Session } from '@/types/api'
-import type { ChatBlock, NormalizedMessage } from '@/chat/types'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
-import { normalizeDecryptedMessage } from '@/chat/normalize'
-import { reduceChatBlocks } from '@/chat/reducer'
-import { reconcileChatBlocks } from '@/chat/reconcile'
+import { useChatBlocks } from '@/chat/useChatBlocks'
 import { ZhushenComposer } from '@/components/AssistantChat/ZhushenComposer'
 import { ZhushenThread } from '@/components/AssistantChat/ZhushenThread'
 import { useZhushenRuntime } from '@/lib/assistant-runtime'
@@ -14,40 +11,6 @@ import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
 import { TeamPanel } from '@/components/TeamPanel'
 import { usePlatform } from '@/shared/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
-
-type NormalizedCacheEntry = {
-    source: DecryptedMessage
-    normalized: NormalizedMessage | null
-}
-
-function normalizeMessagesWithCache(
-    messages: DecryptedMessage[],
-    cache: Map<string, NormalizedCacheEntry>
-): NormalizedMessage[] {
-    const normalized: NormalizedMessage[] = []
-    const seen = new Set<string>()
-
-    for (const message of messages) {
-        seen.add(message.id)
-        const cached = cache.get(message.id)
-        if (cached && cached.source === message) {
-            if (cached.normalized) normalized.push(cached.normalized)
-            continue
-        }
-
-        const next = normalizeDecryptedMessage(message)
-        cache.set(message.id, { source: message, normalized: next })
-        if (next) normalized.push(next)
-    }
-
-    for (const id of cache.keys()) {
-        if (!seen.has(id)) {
-            cache.delete(id)
-        }
-    }
-
-    return normalized
-}
 
 export type SessionChatProps = {
     api: ApiClient
@@ -73,14 +36,11 @@ export type SessionChatProps = {
 
 /**
  * 聊天页面唯一主容器。
- * SessionChatPanel 仅保留为兼容导出，不再维护独立实现。
+ * 聊天主容器统一收敛在 `SessionChat`，不再维护 `SessionChatPanel` 兼容导出。
  */
 export function SessionChat(props: SessionChatProps) {
     const { haptic } = usePlatform()
     const sessionInactive = !props.session.active
-    const normalizedCacheRef = useRef<Map<string, NormalizedCacheEntry>>(new Map())
-
-    const blocksByIdRef = useRef<Map<string, ChatBlock>>(new Map())
     const [forceScrollToken, setForceScrollToken] = useState(0)
     const agentFlavor = props.session.metadata?.flavor ?? null
     const { abortSession, switchSession, setPermissionMode, setModelMode } = useSessionActions(
@@ -89,36 +49,11 @@ export function SessionChat(props: SessionChatProps) {
         agentFlavor
     )
 
-    // Track session id to clear caches when it changes
-    const prevSessionIdRef = useRef<string | null>(null)
-
-    useEffect(() => {
-        normalizedCacheRef.current.clear()
-        blocksByIdRef.current.clear()
-    }, [props.session.id])
-
-    const normalizedMessages: NormalizedMessage[] = useMemo(() => {
-        if (prevSessionIdRef.current !== null && prevSessionIdRef.current !== props.session.id) {
-            normalizedCacheRef.current.clear()
-            blocksByIdRef.current.clear()
-        }
-        prevSessionIdRef.current = props.session.id
-
-        return normalizeMessagesWithCache(props.messages, normalizedCacheRef.current)
-    }, [props.messages, props.session.id])
-
-    const reduced = useMemo(
-        () => reduceChatBlocks(normalizedMessages, props.session.agentState),
-        [normalizedMessages, props.session.agentState]
+    const { blocks, latestUsage, normalizedMessagesCount } = useChatBlocks(
+        props.messages,
+        props.session.id,
+        props.session.agentState,
     )
-    const reconciled = useMemo(
-        () => reconcileChatBlocks(reduced.blocks, blocksByIdRef.current),
-        [reduced.blocks]
-    )
-
-    useEffect(() => {
-        blocksByIdRef.current = reconciled.byId
-    }, [reconciled.byId])
 
     const handlePermissionModeChange = useCallback(async (mode: PermissionMode) => {
         try {
@@ -166,7 +101,7 @@ export function SessionChat(props: SessionChatProps) {
 
     const runtime = useZhushenRuntime({
         session: props.session,
-        blocks: reconciled.blocks,
+        blocks,
         isSending: props.isSending,
         onSendMessage: handleSend,
         onAbort: handleAbort,
@@ -205,7 +140,7 @@ export function SessionChat(props: SessionChatProps) {
                         onLoadMore={props.onLoadMore}
                         pendingCount={props.pendingCount}
                         rawMessagesCount={props.messages.length}
-                        normalizedMessagesCount={normalizedMessages.length}
+                        normalizedMessagesCount={normalizedMessagesCount}
                         messagesVersion={props.messagesVersion}
                         forceScrollToken={forceScrollToken}
                     />
@@ -219,7 +154,7 @@ export function SessionChat(props: SessionChatProps) {
                         allowSendWhenInactive
                         thinking={props.session.thinking}
                         agentState={props.session.agentState}
-                        contextSize={reduced.latestUsage?.contextSize}
+                        contextSize={latestUsage?.contextSize}
                         controlledByUser={props.session.agentState?.controlledByUser === true}
                         onPermissionModeChange={handlePermissionModeChange}
                         onModelModeChange={handleModelModeChange}

@@ -18,6 +18,3 @@ export type { SessionFilesPanelProps } from './session-files-panel'
 
 export { SessionTerminalPanel } from './session-terminal-panel'
 export type { SessionTerminalPanelProps } from './session-terminal-panel'
-
-export { SessionChatPanel } from './session-chat-panel'
-export type { SessionChatPanelProps } from './session-chat-panel'

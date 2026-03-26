@@ -1,3 +1,4 @@
+import { buildCanonicalUserMessage } from '@zs/protocol/chat-protocol-user-message'
 import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import type { ApiClient } from '@/api/client'
@@ -65,14 +66,10 @@ export function useSendMessage(
                 id: input.localId,
                 seq: null,
                 localId: input.localId,
-                content: {
-                    role: 'user',
-                    content: {
-                        type: 'text',
-                        text: input.text,
-                        attachments: input.attachments
-                    }
-                },
+                content: buildCanonicalUserMessage({
+                    text: input.text,
+                    attachments: input.attachments,
+                }),
                 createdAt: input.createdAt,
                 status: 'sending',
                 originalText: input.text,

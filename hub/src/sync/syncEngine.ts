@@ -28,6 +28,7 @@ import type { SSEManager } from '../sse/sseManager'
 import { EventPublisher, type SyncEventListener } from './eventPublisher'
 import { MachineCache, type Machine } from './machineCache'
 import { MessageService } from './messageService'
+import { RealtimeEventCoordinator } from './realtimeEventCoordinator'
 import {
     RpcGateway,
     type RpcCommandResponse,
@@ -61,6 +62,7 @@ export class SyncEngine {
     private readonly machineCache: MachineCache
     private readonly messageService: MessageService
     private readonly rpcGateway: RpcGateway
+    private readonly realtimeEventCoordinator: RealtimeEventCoordinator
     private inactivityTimer: NodeJS.Timeout | null = null
 
     constructor(
@@ -74,6 +76,12 @@ export class SyncEngine {
         this.machineCache = new MachineCache(store, this.eventPublisher)
         this.messageService = new MessageService(store, io, this.eventPublisher)
         this.rpcGateway = new RpcGateway(io, rpcRegistry)
+        this.realtimeEventCoordinator = new RealtimeEventCoordinator(
+            this.sessionCache,
+            this.machineCache,
+            this.eventPublisher,
+            (sessionId) => this.getSession(sessionId),
+        )
         this.reloadAll()
         this.inactivityTimer = setInterval(() => this.expireInactive(), 5_000)
     }
@@ -175,23 +183,7 @@ export class SyncEngine {
     }
 
     handleRealtimeEvent(event: SyncEvent): void {
-        if (event.type === 'session-updated' && event.sessionId) {
-            this.sessionCache.refreshSession(event.sessionId)
-            return
-        }
-
-        if (event.type === 'machine-updated' && event.machineId) {
-            this.machineCache.refreshMachine(event.machineId)
-            return
-        }
-
-        if (event.type === 'message-received' && event.sessionId) {
-            if (!this.getSession(event.sessionId)) {
-                this.sessionCache.refreshSession(event.sessionId)
-            }
-        }
-
-        this.eventPublisher.emit(event)
+        this.realtimeEventCoordinator.handle(event)
     }
 
     handleSessionAlive(payload: {

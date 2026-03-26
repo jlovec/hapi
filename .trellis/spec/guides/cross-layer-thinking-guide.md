@@ -211,7 +211,7 @@ Source → Transform → Store → Retrieve → Transform → Display
 
 当你修改聊天消息展示、会话切换、pending 消息、自动滚动或聊天时间线聚合时，不要把它当成单个组件问题；这实际上是一个跨层契约：
 
-- [ ] **先定义唯一事实源**：`hub/src/store/messages.ts` 的持久化消息序列、`web/src/lib/message-window-store.ts` 的窗口态、`web/src/widgets/session-chat-panel/ui/SessionChatPanel.tsx` 的展示派生，三者里哪一层负责“事实”，哪一层只负责“视图裁剪”？
+- [ ] **先定义唯一事实源**：`hub/src/store/messages.ts` 的持久化消息序列、`web/src/lib/message-window-store.ts` 的窗口态、`web/src/components/SessionChat.tsx` 的展示派生，三者里哪一层负责“事实”，哪一层只负责“视图裁剪”？
 - [ ] **同一语义只允许一层决策**：诸如“用户消息在非底部进入 pending、agent 消息立即展示”“是否隐藏 optimistic 泡泡”“消息去重 / 合并 / 截断”这类规则，是否只有一层负责，而不是 store、query cache、组件 reducer 各写一遍？
 - [ ] **session 身份切换是否先清作用域再派生 UI**：`session.id` 改变时，所有 `useRef`/模块级 cache/Map store 是否先清空旧会话缓存，再计算新会话的 normalized blocks、pending count、warning 与 scroll 状态？
 - [ ] **事件流顺序是否明确**：SSE / 拉取刷新 / optimistic append / flush pending 到来顺序不同时，UI 是否仍遵守同一条时间线契约，而不是因为“当前是否在底部”临时改写消息可见性语义？
@@ -222,7 +222,7 @@ Source → Transform → Store → Retrieve → Transform → Display
 
 典型失败模式：
 - Hub 提供的是按 `seq` 排序的消息事实流，但 Web 侧同时在 query cache、message-window-store、chat block reducer 里重复做合并与裁剪，最终没人能说清哪一层负责真实时间线。
-- `SessionChatPanel` 以为自己只是展示层，实际上又维护 `normalizedCacheRef` / `blocksByIdRef`；`message-window-store` 又维护 pending/visible/window；两边都在偷偷决定“什么该显示”。
+- 历史案例：`SessionChatPanel` 以为自己只是展示层，实际上又维护 `normalizedCacheRef` / `blocksByIdRef`；`message-window-store` 又维护 pending/visible/window；两边都在偷偷决定“什么该显示”。
 - 为了改善“用户离开底部时的体验”，store 仅把 user 消息放入 pending、让 agent 消息立即显示；短期上看像是 UX 优化，长期却把消息展示语义拆成了按角色分叉的隐式契约。
 - session 切换时虽然组件 `key` 变了，但模块级 store / ref cache / query fallback 还残留旧状态，导致聊天面板看起来像“展示层 bug”，本质却是跨层作用域没有统一。
 
@@ -290,7 +290,29 @@ Source → Transform → Store → Retrieve → Transform → Display
 
 ---
 
-## WebSocket 跨层契约检查清单（Frontend ↔ Hub ↔ CLI）
+## SSE Visibility Subscription Contract 检查清单（Web EventSource ↔ Visibility Reporter ↔ Hub VisibilityTracker）
+
+当 Web 端通过 SSE 建立订阅，并额外用 `POST /api/visibility` 上报页面可见性时，不要把 404 当成“偶发网络波动”；这实际上是一个跨层订阅生命周期契约：
+
+- [ ] **visibility 上报是否严格依赖已确认的 subscriptionId？** 前端必须等 `connection-changed` / 等价握手事件返回 subscriptionId 后，才能发送 visibility 请求；不得用本地猜测 ID 或复用上一条连接的 ID。
+- [ ] **subscription 切换时是否先失效旧作用域？** SSE 重连、session 切换、token/baseUrl 变化时，是否先把旧 subscriptionId 视为无效，再创建新 EventSource 与新 visibility 上报链路？
+- [ ] **旧 subscription 的 in-flight / retry 请求是否会被抑制？** 若旧连接已 `unsubscribe`，前端是否会停止继续对旧 subscriptionId 重试，而不是把 404 当成普通可重试错误？
+- [ ] **Hub 404 语义是否被正确理解？** `POST /api/visibility` 返回 404 应明确表示“subscription 不存在或 namespace 不匹配”，而不是模糊归类为 API 不稳定。
+- [ ] **连接注册顺序是否唯一且清晰？** Hub 是否在 `SSEManager.subscribe(...)` 注册 `VisibilityTracker` 后，再向前端发送 `connection-changed` 事件？前端是否只在拿到该事件后开始上报？
+- [ ] **namespace 约束是否在前后端保持一致？** 同一 subscriptionId 的 visibility 更新是否始终在同一个 namespace 下发送；跨用户 / 跨 namespace 切换时，旧 subscription 是否立即失效？
+- [ ] **测试是否覆盖失效窗口？** 是否有测试覆盖：`旧 subscription 发 visibility -> Hub 已 unsubscribe -> 前端停止对旧 ID 重试`，以及 `新 subscription 建立后恢复正常上报`？
+
+典型失败模式：
+- 前端快速刷新 / 切换 session / SSE 重连时，旧 subscription 的 visibility 请求仍在飞行中；Hub 已经 `unsubscribe`，于是返回 404。
+- 前端把 404 视为“暂时失败”，继续对旧 subscriptionId 执行定时重试，日志被持续污染，但真正的问题是订阅生命周期已经切换。
+- 调试时只看 `POST /api/visibility 404`，误判为接口没实现；实际上 `GET /api/events` 与 `connection-changed` 的注册顺序才是根因。
+
+建议动作：
+- 先画清楚事件流：`create EventSource -> Hub subscribe/register -> Hub send connection-changed(subscriptionId) -> Web setSubscriptionId -> visibility reporter flush`。
+- 把 404 明确归类为“subscription lifecycle mismatch”，优先检查旧 subscription 失效、retry 取消与 namespace 一致性。
+- 修复时优先收敛在单点：要么前端在 404 时停止旧 subscription 的重试，要么在切换时更早失效旧 reporter；不要同时在多层补丁式兜底。
+- 回归测试必须覆盖刷新、重连、session 切换三个入口，而不是只测稳定连接下的 happy path。
+
 
 当实现或修改 WebSocket 连接功能时，必须检查以下跨层契约：
 

@@ -1,11 +1,19 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useSendMessage } from './useSendMessage'
-import type { ApiClient } from '@/api/client'
 import type { ReactNode } from 'react'
+import type { ApiClient } from '@/api/client'
+import { useSendMessage } from './useSendMessage'
 
-// Mock usePlatform hook
+const messageWindowStoreMocks = vi.hoisted(() => ({
+    appendOptimisticMessage: vi.fn(),
+    updateMessageStatus: vi.fn(),
+    getMessageWindowState: vi.fn(() => ({
+        messages: [],
+        pending: [],
+    })),
+}))
+
 vi.mock('@/shared/hooks/usePlatform', () => ({
     usePlatform: () => ({
         haptic: {
@@ -14,14 +22,10 @@ vi.mock('@/shared/hooks/usePlatform', () => ({
     }),
 }))
 
-// Mock message-window-store
 vi.mock('@/lib/message-window-store', () => ({
-    appendOptimisticMessage: vi.fn(),
-    updateMessageStatus: vi.fn(),
-    getMessageWindowState: vi.fn(() => ({
-        messages: [],
-        pending: [],
-    })),
+    appendOptimisticMessage: messageWindowStoreMocks.appendOptimisticMessage,
+    updateMessageStatus: messageWindowStoreMocks.updateMessageStatus,
+    getMessageWindowState: messageWindowStoreMocks.getMessageWindowState,
 }))
 
 function createWrapper() {
@@ -66,6 +70,51 @@ describe('useSendMessage', () => {
         expect(onBlocked).toHaveBeenCalledWith('no-session')
     })
 
+    it('adds canonical optimistic user message before sending', async () => {
+        const mockApi = {
+            sendMessage: vi.fn().mockResolvedValue(undefined),
+        } as unknown as ApiClient
+
+        const { result } = renderHook(
+            () => useSendMessage(mockApi, 'session-123'),
+            { wrapper: createWrapper() }
+        )
+
+        result.current.sendMessage('Hello world', [{
+            id: 'att-1',
+            filename: 'test.txt',
+            mimeType: 'text/plain',
+            size: 100,
+            path: '/uploads/test.txt',
+        }])
+
+        await waitFor(() => {
+            expect(messageWindowStoreMocks.appendOptimisticMessage).toHaveBeenCalled()
+        })
+
+        expect(messageWindowStoreMocks.appendOptimisticMessage.mock.calls[0]?.[0]).toBe('session-123')
+        expect(messageWindowStoreMocks.appendOptimisticMessage.mock.calls[0]?.[1]).toEqual(expect.objectContaining({
+            seq: null,
+            status: 'sending',
+            originalText: 'Hello world',
+            content: {
+                role: 'user',
+                content: {
+                    type: 'text',
+                    text: 'Hello world',
+                    attachments: [{
+                        id: 'att-1',
+                        filename: 'test.txt',
+                        mimeType: 'text/plain',
+                        size: 100,
+                        path: '/uploads/test.txt',
+                    }],
+                },
+                meta: undefined,
+            },
+        }))
+    })
+
     it('sends message successfully', async () => {
         const mockApi = {
             sendMessage: vi.fn().mockResolvedValue(undefined),
@@ -85,7 +134,7 @@ describe('useSendMessage', () => {
         const callArgs = (mockApi.sendMessage as ReturnType<typeof vi.fn>).mock.calls[0]
         expect(callArgs[0]).toBe('session-123')
         expect(callArgs[1]).toBe('Hello world')
-        expect(typeof callArgs[2]).toBe('string') // localId
+        expect(typeof callArgs[2]).toBe('string')
     })
 
     it('sends message with attachments', async () => {
@@ -93,15 +142,13 @@ describe('useSendMessage', () => {
             sendMessage: vi.fn().mockResolvedValue(undefined),
         } as unknown as ApiClient
 
-        const attachments = [
-            {
-                id: 'att-1',
-                filename: 'test.txt',
-                mimeType: 'text/plain',
-                size: 100,
-                path: '/uploads/test.txt',
-            },
-        ]
+        const attachments = [{
+            id: 'att-1',
+            filename: 'test.txt',
+            mimeType: 'text/plain',
+            size: 100,
+            path: '/uploads/test.txt',
+        }]
 
         const { result } = renderHook(
             () => useSendMessage(mockApi, 'session-123'),
@@ -143,3 +190,4 @@ describe('useSendMessage', () => {
         }, { timeout: 200 })
     })
 })
+

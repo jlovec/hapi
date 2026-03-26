@@ -71,9 +71,21 @@ describe('startLocalTestEnv', () => {
         });
     });
 
-    it('throws a clear error when required values are missing from both sources', () => {
+    it('throws a clear aggregated error when required values are missing from both sources', () => {
         expect(() => resolveStartupConfig({}, settingsPath)).toThrow(
             `缺少 Claude 启动配置: ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL。请先设置环境变量，或在 ${settingsPath} 的 .env 中提供对应字段。`
+        );
+    });
+
+    it('throws a clear error when ANTHROPIC_BASE_URL is missing from both sources', () => {
+        writeFileSync(settingsPath, JSON.stringify({
+            env: {
+                ANTHROPIC_API_KEY: 'settings-key'
+            }
+        }));
+
+        expect(() => resolveStartupConfig({}, settingsPath)).toThrow(
+            `缺少 Claude 启动配置: ANTHROPIC_BASE_URL。请先设置环境变量，或在 ${settingsPath} 的 .env 中提供对应字段。`
         );
     });
 

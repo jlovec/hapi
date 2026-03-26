@@ -7,6 +7,21 @@ import {
 } from './messages'
 import type { DecryptedMessage } from '@/types/api'
 
+function createCanonicalUserMessage(overrides: Partial<DecryptedMessage> = {}): DecryptedMessage {
+    return {
+        id: 'user-msg',
+        content: {
+            role: 'user',
+            content: {
+                type: 'text',
+                text: 'hello',
+            },
+        },
+        createdAt: 1000,
+        ...overrides,
+    } as DecryptedMessage
+}
+
 describe('messages lib', () => {
     describe('makeClientSideId', () => {
         it('generates ID with crypto.randomUUID when available', () => {
@@ -21,12 +36,8 @@ describe('messages lib', () => {
     })
 
     describe('isUserMessage', () => {
-        it('returns true for user messages', () => {
-            const msg: DecryptedMessage = {
-                id: '1',
-                content: { role: 'user', text: 'hello' },
-                createdAt: Date.now(),
-            } as DecryptedMessage
+        it('returns true for canonical user messages', () => {
+            const msg = createCanonicalUserMessage({ id: '1', createdAt: Date.now() })
             expect(isUserMessage(msg)).toBe(true)
         })
 
@@ -101,19 +112,17 @@ describe('messages lib', () => {
         })
 
         it('removes optimistic messages when server message arrives with same localId', () => {
-            const optimistic: DecryptedMessage = {
+            const optimistic = createCanonicalUserMessage({
                 id: 'local-123',
                 localId: 'local-123',
-                content: { role: 'user' },
                 createdAt: 1000,
-            } as DecryptedMessage
+            })
 
-            const serverMsg: DecryptedMessage = {
+            const serverMsg = createCanonicalUserMessage({
                 id: 'server-456',
                 localId: 'local-123',
-                content: { role: 'user' },
                 createdAt: 1000,
-            } as DecryptedMessage
+            })
 
             const result = mergeMessages([optimistic], [serverMsg])
             expect(result).toHaveLength(1)
@@ -121,19 +130,17 @@ describe('messages lib', () => {
         })
 
         it('removes sent optimistic messages when server user message appears close in time', () => {
-            const optimistic: DecryptedMessage = {
+            const optimistic = createCanonicalUserMessage({
                 id: 'local-123',
                 localId: 'local-123',
-                content: { role: 'user' },
                 createdAt: 1000,
                 status: 'sent',
-            } as DecryptedMessage
+            })
 
-            const serverMsg: DecryptedMessage = {
+            const serverMsg = createCanonicalUserMessage({
                 id: 'server-456',
-                content: { role: 'user' },
                 createdAt: 1005,
-            } as DecryptedMessage
+            })
 
             const result = mergeMessages([optimistic], [serverMsg])
             expect(result).toHaveLength(1)
@@ -176,3 +183,4 @@ describe('messages lib', () => {
         })
     })
 })
+

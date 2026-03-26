@@ -23,7 +23,7 @@ vi.mock('@/lib/message-window-store', () => {
     }
 
     return {
-        subscribeMessageWindow: vi.fn((sessionId, listener) => () => {}),
+        subscribeMessageWindow: vi.fn((_sessionId, _listener) => () => {}),
         getMessageWindowState: vi.fn(() => mockState),
         refreshMessageWindow: vi.fn(),
         fetchLatestMessages: vi.fn(),
@@ -150,11 +150,11 @@ describe('useMessages', () => {
 
         await result.current.refetch()
 
-        expect(messageWindowStore.refreshMessageWindow).toHaveBeenCalledTimes(2) // Once on mount, once on refetch
+        expect(messageWindowStore.refreshMessageWindow).toHaveBeenCalledTimes(2)
     })
 
     it('provides flushPending function', async () => {
-        vi.mocked(messageWindowStore.flushPendingMessages).mockReturnValue(true) // Needs refresh
+        vi.mocked(messageWindowStore.flushPendingMessages).mockReturnValue(true)
 
         const { result } = renderHook(() => useMessages(mockApi, 'session-123'), {
             wrapper: createWrapper(),
@@ -246,6 +246,51 @@ describe('useMessages', () => {
                 },
             ],
             pendingCount: 3,
+            hasMore: false,
+            oldestSeq: null,
+            newestSeq: null,
+            isLoading: false,
+            isLoadingMore: false,
+            warning: null,
+            atBottom: false,
+            messagesVersion: 0,
+        })
+
+        const { result } = renderHook(() => useMessages(mockApi, 'session-123'), {
+            wrapper: createWrapper(),
+        })
+
+        expect(result.current.pendingCount).toBe(2)
+    })
+
+    it('counts canonical pending user messages as renderable', () => {
+        vi.mocked(messageWindowStore.getMessageWindowState).mockReturnValue({
+            sessionId: 'session-123',
+            messages: [],
+            pending: [
+                {
+                    id: 'canonical-user',
+                    seq: 12,
+                    localId: null,
+                    content: {
+                        role: 'user',
+                        content: { type: 'text', text: 'hello canonical' },
+                        meta: { sentFrom: 'webapp' },
+                    },
+                    createdAt: Date.now(),
+                },
+                {
+                    id: 'canonical-user-no-meta',
+                    seq: 13,
+                    localId: null,
+                    content: {
+                        role: 'user',
+                        content: { type: 'text', text: 'hello canonical no meta' },
+                    },
+                    createdAt: Date.now(),
+                },
+            ],
+            pendingCount: 2,
             hasMore: false,
             oldestSeq: null,
             newestSeq: null,
