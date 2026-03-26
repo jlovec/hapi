@@ -1,3 +1,18 @@
+/**
+ * Current role:
+ * - runner lifecycle orchestration entry
+ * - startup/shutdown coordination for the local runner process
+ * - legacy aggregation point for spawn/resume, auth/setup, worktree, and control-plane wiring
+ *
+ * MIGRATION_PHASE: 2
+ * NOTE(layering): keep this file focused on orchestration. Move flavor-specific behavior,
+ * runtime adapters, spawn/resume policy, and persistent state management into dedicated
+ * app/domain/infra modules instead of expanding this entry further.
+ * REMOVE_AFTER:
+ * - spawn/resume, worktree, auth/setup, and flavor-specific behavior move to dedicated modules
+ * - this file only coordinates runner startup/shutdown orchestration
+ */
+
 import fs from 'fs/promises';
 import os from 'os';
 

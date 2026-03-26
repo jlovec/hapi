@@ -24,6 +24,12 @@ export const hubCommand: CommandDefinition = {
     name: 'hub',
     requiresRuntimeAssets: true,
     run: async (context: CommandContext) => {
+        // NOTE(compat): this command is a legacy host bridge for the current CLI -> Hub startup path.
+        // It exists for bundled/all-in-one delivery compatibility.
+        // REMOVE_AFTER:
+        // - CLI no longer imports hub/src/index directly
+        // - hub startup/bootstrap is exposed through a dedicated host/runtime boundary
+        // Do not add new hub business logic here; keep this file limited to command parsing and host bootstrapping.
         try {
             const { host, port } = parseHubArgs(context.commandArgs)
 

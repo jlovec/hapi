@@ -1,10 +1,16 @@
 /**
  * Zhushen Hub - Main Entry Point
  *
- * Provides:
- * - Web app + HTTP API
- * - Socket.IO for CLI connections
- * - SSE updates for the web UI
+ * Current role:
+ * - Legacy host/bootstrap entry for the hub runtime
+ * - Wires together config, store, realtime transports, notifications, tunnel, and web serving
+ *
+ * NOTE(layering): this file is currently a composition root plus delivery/bootstrap entry.
+ * During layering refactors, move business and application logic out of this file instead of adding more here.
+ * REMOVE_AFTER:
+ * - startup/bootstrap wiring is split into dedicated host/runtime modules
+ * - delivery-mode branching no longer lives in this entry file
+ * Do not add new domain rules here.
  */
 
 import { createConfiguration, type ConfigSource } from './configuration'

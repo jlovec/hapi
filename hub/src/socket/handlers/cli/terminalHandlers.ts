@@ -9,6 +9,10 @@ import type { TerminalRegistry } from '../../terminalRegistry'
 import type { CliSocketWithData, SocketServer } from '../../socketTypes'
 import type { AccessErrorReason, AccessResult } from './types'
 
+// NOTE(layering): this module is a terminal transport bridge between CLI-owned terminal
+// events and web-facing terminal sockets. Keep it focused on validation, ownership checks,
+// registry coordination, and event forwarding. Do not add terminal business policy here.
+
 type ResolveSessionAccess = (sessionId: string) => AccessResult<StoredSession>
 
 type EmitAccessError = (scope: 'session' | 'machine', id: string, reason: AccessErrorReason) => void

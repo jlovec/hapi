@@ -5,6 +5,13 @@
  * When values are read from environment variables and not present in settings.json,
  * they are automatically saved for future use
  *
+ * NOTE(compat): this module still exposes the `configuration` proxy so older callers
+ * can access initialized configuration state without switching immediately to
+ * `getConfiguration()`.
+ * REMOVE_AFTER:
+ * - callers no longer import the `configuration` proxy
+ * - configuration access goes through explicit create/get helpers only
+ *
  * Optional environment variables:
  * - CLI_API_TOKEN: Shared secret for zhushen CLI authentication (auto-generated if not set)
  * - ZS_LISTEN_HOST: Host/IP to bind the HTTP service (default: 127.0.0.1)

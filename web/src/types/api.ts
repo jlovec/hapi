@@ -6,6 +6,10 @@ import type {
     WorktreeMetadata
 } from '@zs/protocol/types'
 
+// NOTE(layering): this file is a temporary boundary between shared transport contracts
+// and web-local view/model types. Prefer extending shared contracts for cross-runtime DTOs,
+// and keep only UI-specific derived shapes local to web.
+
 export type {
     AgentState,
     AttachmentMetadata,

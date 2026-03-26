@@ -6,6 +6,11 @@ import type { SyncEvent } from '../../../sync/syncEngine'
 import type { CliSocketWithData } from '../../socketTypes'
 import type { AccessErrorReason, AccessResult } from './types'
 
+// NOTE(layering): this transport handler is the CLI machine-facing adapter.
+// Keep responsibilities limited to payload validation, access checks, store delegation,
+// and outbound transport updates. Do not expand this file with runner policy or broader
+// application/domain rules during layering migration.
+
 type MachineAlivePayload = {
     machineId: string
     time: number

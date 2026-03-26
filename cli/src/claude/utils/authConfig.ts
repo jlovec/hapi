@@ -2,6 +2,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { logger } from '@/ui/logger';
 import { getClaudeLegacyConfigPath, getClaudeSettingsPath } from './claudeSettings';
 
+// NOTE(compat): this module keeps Claude auth source detection backward compatible
+// across environment variables, the current settings file, and the legacy config path.
+// REMOVE_AFTER:
+// - legacy ~/.claude.json support is removed
+// - auth discovery no longer needs to probe legacy-config sources
+
 const OFFICIAL_CLAUDE_ENV_KEYS = [
   'CLAUDE_CODE_OAUTH_TOKEN',
   'ANTHROPIC_API_KEY'

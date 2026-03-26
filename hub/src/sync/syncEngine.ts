@@ -1,10 +1,23 @@
 /**
  * Sync Engine for Zhushen Hub (Direct Connect)
  *
+ * Current role:
+ * - application-facing facade over session/machine/message sync capabilities
+ * - compatibility aggregation point for query/command/rpc-bridge style operations
+ * - still carries some legacy orchestration responsibilities during layering migration
+ *
  * In the direct-connect architecture:
  * - zhushen-hub is the hub (Socket.IO + REST)
  * - zs CLI connects directly to the hub (no relay)
  * - No E2E encryption; data is stored as JSON in SQLite
+ *
+ * MIGRATION_PHASE: 2
+ * NOTE(layering): shrink this file over time. Prefer moving new business rules,
+ * projection logic, and use-case-specific orchestration into app/domain modules
+ * instead of expanding SyncEngine further.
+ * REMOVE_AFTER:
+ * - route/socket callers use dedicated app services for complex use cases
+ * - SyncEngine is reduced to a thin facade or replaced by narrower entry points
  */
 
 import type { DecryptedMessage, ModelMode, PermissionMode, Session, SyncEvent } from '@zs/protocol/types'

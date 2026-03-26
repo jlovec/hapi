@@ -189,6 +189,11 @@ export async function getRunnerAvailability(): Promise<RunnerAvailability> {
 /**
  * @deprecated Prefer getRunnerAvailability() so callers can distinguish
  * degraded, stale, and missing runner states explicitly.
+ * This boolean wrapper remains only for older callers that have not migrated
+ * to the richer availability contract yet.
+ * REMOVE_AFTER:
+ * - all callers migrate to getRunnerAvailability()
+ * - no boolean-only runner availability checks remain
  */
 export async function checkIfRunnerRunningAndCleanupStaleState(): Promise<boolean> {
   const availability = await getRunnerAvailability();

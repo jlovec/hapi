@@ -4,6 +4,13 @@
  * Handles loading and persistence of hub configuration.
  * Priority: environment variable > settings.json > default value
  *
+ * NOTE(compat): this module still migrates legacy settings field names
+ * (`webappHost`, `webappPort`, `webappUrl`) and removes deprecated Telegram fields
+ * while normalizing persisted config to the current schema.
+ * REMOVE_AFTER:
+ * - persisted settings no longer contain legacy webapp* field names
+ * - deprecated Telegram settings fields are no longer supported in stored config
+ *
  * When a value is loaded from environment variable and not present in settings.json,
  * it will be saved to settings.json for future use
  */

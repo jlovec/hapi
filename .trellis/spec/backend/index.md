@@ -14,7 +14,10 @@
 
 | 指南 | 说明 | 状态 |
 |------|------|------|
-| [目录结构](./directory-structure.md) | 模块组织与文件布局 | 待补充 |
+| [目录结构](./directory-structure.md) | 模块组织、目标目录设计与迁移落位规则 | 已更新（分层重构版） |
+| [架构重构指南](./architecture-refactor-guidelines.md) | hub / web / cli 分层、领域解耦、迁移与注释维护规范 | ✅ 新增 |
+| [Legacy Map](./legacy-map.md) | 旧结构到目标结构的映射、删除条件与过渡边界 | ✅ 新增 |
+| [注释治理清单](./comment-governance.md) | legacy / compat / deprecated / layering 注释维护规范 | ✅ 新增 |
 | [数据库规范](./database-guidelines.md) | ORM/SQL 模式、查询与迁移 | 待补充 |
 | [错误处理](./error-handling.md) | 错误类型与处理策略 | 已更新（spawn RPC 契约） |
 | [质量规范](./quality-guidelines.md) | 代码标准与禁止模式 | 已更新（人工测试环境统一脚本搭建） |

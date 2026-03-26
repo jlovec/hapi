@@ -60,6 +60,9 @@ export type SessionHandlersDeps = {
 export function registerSessionHandlers(socket: CliSocketWithData, deps: SessionHandlersDeps): void {
     const { store, resolveSessionAccess, emitAccessError, onSessionAlive, onSessionEnd, onWebappEvent } = deps
 
+    // NOTE(layering): this transport handler currently mixes message ingest with derived projections
+    // (for example TodoWrite and TeamState extraction). During refactoring, move projection/derived-state
+    // updates behind application services or projection dispatchers instead of expanding this handler further.
     socket.on('message', (data: unknown) => {
         const parsed = messageSchema.safeParse(data)
         if (!parsed.success) {

@@ -64,6 +64,9 @@ function createWebApp(options: {
     relayMode?: boolean
     officialWebUrl?: string
 }): Hono<WebAppEnv> {
+    // NOTE(layering): this module is an HTTP/web hosting adapter.
+    // It currently serves both API routes and web assets because the project still supports bundled/all-in-one delivery.
+    // Avoid adding new application/domain logic here; route handlers should stay thin and delegate inward.
     const app = new Hono<WebAppEnv>()
 
     app.use('*', logger())

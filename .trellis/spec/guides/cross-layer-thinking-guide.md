@@ -48,6 +48,23 @@ Source → Transform → Store → Retrieve → Transform → Display
 
 ---
 
+## hub / web / cli 架构演进时的额外检查
+
+当修改 hub / web / cli 的跨层功能，尤其涉及 `SyncEngine`、route、socket handler、shared contract、terminal、runner、web API 类型时，除了普通跨层检查，还必须额外确认：
+
+- [ ] 这是 contract、domain、application、infra adapter 还是 host/bootstrap 问题？
+- [ ] 当前改动是否会让 transport handler 承担更多业务逻辑？
+- [ ] 当前改动是否会让 `SyncEngine` 继续膨胀，而不是收敛为 facade？
+- [ ] 当前改动是否把 projection / derived state 塞回 message ingest 或 route handler？
+- [ ] 当前改动是否在 web / cli / hub 任一侧重复定义 transport contract？
+- [ ] 当前改动是否发生在 legacy host / compatibility bridge 中？如果是，是否已经注明“不要继续堆业务逻辑”？
+- [ ] 当前改动是否同步更新了结构注释、deprecated 标注或迁移备注？
+
+如果以上任一问题回答不清，先阅读：
+- `backend/architecture-refactor-guidelines.md`
+
+---
+
 ## 常见的跨层错误
 
 ### 错误 1：隐式格式假设
