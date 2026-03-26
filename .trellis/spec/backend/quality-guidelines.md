@@ -163,6 +163,70 @@ bun run build      # 构建生产版本
 - 如果多架构发布卡在单个镜像，而同工作流中的其它镜像已完成，应优先怀疑该镜像在某个目标架构上的构建阶段，而不是先怀疑 GHCR 登录或 workflow 框架本身。
 - 对于耗时长的多架构步骤，要增加可观测性（如拆分按架构构建、输出每架构进度，或先产出单架构 smoke 结果），避免 job 长时间停留在 `Build and push` 却无法判断是“慢”还是“卡住”。
 
+## Runner 工具链可用性契约
+
+### 1. Scope / Trigger
+- 触发条件：修改 `Dockerfile.runner` 中的 CLI 工具安装、增加 runner 文档里的环境变量约定，或调整 Docker 镜像 smoke test。
+- 为什么需要 code-spec 深度：这类变更同时影响运行时镜像能力、CI 可执行校验与文档中的环境变量契约，属于 infra integration + env wiring。
+
+### 2. Signatures
+- 运行时镜像定义：
+  - `Dockerfile.runner`
+  - runtime stage 必须在最终镜像 PATH 中提供需要暴露给用户的 CLI。
+- Runner 镜像文档入口：
+  - `docs/guide/docker-runner.md`
+  - 必须记录工具来源、用途、验证命令与关键环境变量。
+- Docker 镜像 smoke test：
+  - `.github/workflows/docker-images.yml`
+  - `compose-smoke` job 的 `Runner smoke test` 步骤负责校验基础 CLI 可执行性。
+
+### 3. Contracts
+- 运行时工具契约：
+  - `docker`：必须可通过 `docker --version` 成功执行。
+  - `docker compose`：必须可通过 `docker compose version` 成功执行；若基础发行版仅提供独立 `docker-compose` 二进制，需要在镜像内补 Docker CLI plugin 兼容入口。
+  - `glab`：必须可通过 `glab --version` 成功执行。
+- 文档环境变量契约：
+  - `GITLAB_TOKEN`：推荐的 GitLab CLI 认证 token 环境变量。
+  - `GITLAB_HOST`：可选，用于指定自建 GitLab 实例域名。
+  - `GLAB_TOKEN`：兼容命名，可在文档中说明，但项目文档应优先推荐 `GITLAB_TOKEN`。
+- 文档职责契约：
+  - 文档只说明如何注入凭证，不应声称 runner 会自动写入、持久化或修复 GitLab 凭证。
+
+### 4. Validation & Error Matrix
+- 仅安装 `docker-compose`，但未补 plugin 入口 → `docker compose version` 失败，说明镜像不满足用户可执行契约。
+- 文档只写 `glab` 已安装，但未说明 token / host 变量 → 使用者无法判断如何在 CI / 自建 GitLab 中认证。
+- 文档把 `GLAB_TOKEN` 与 `GITLAB_TOKEN` 混成主推荐入口 → 增加环境命名分裂，后续脚本难以统一。
+- CI 只校验镜像能 build，不校验新增 CLI → 发布后才暴露缺工具问题。
+
+### 5. Good/Base/Bad Cases
+- Good：runtime stage 同时提供 `docker`、`docker compose`、`glab`，文档明确 `GITLAB_TOKEN` / `GITLAB_HOST`，CI smoke test 覆盖三者版本命令。
+- Base：镜像能运行 `docker` 与 `glab`，文档说明认证变量，但尚未补充更深的 GitLab 使用示例。
+- Bad：只在文档中宣称支持某工具，镜像或 CI 没有任何真实命令校验。
+
+### 6. Tests Required
+- Docker build：`docker build -f Dockerfile.runner -t zs-runner:local .`
+- Runtime smoke：
+  - `docker run --rm zs-runner:local docker --version`
+  - `docker run --rm zs-runner:local docker compose version`
+  - `docker run --rm zs-runner:local glab --version`
+- Workflow assertion points：
+  - `.github/workflows/docker-images.yml` 的 `Runner smoke test` 必须覆盖新增 CLI。
+- Documentation assertion points：
+  - `docs/guide/docker-runner.md` 必须同步更新工具清单、验证命令、GitLab 认证环境变量说明。
+
+### 7. Wrong vs Correct
+#### Wrong
+- 只安装 `docker-compose` 二进制，然后假设 `docker compose` 一定可用。
+- 只写“支持 glab”，但不说明推荐使用 `GITLAB_TOKEN` 与 `GITLAB_HOST`。
+- 只做 `docker build`，不做镜像内命令级 smoke test。
+
+#### Correct
+- 把 `docker compose` 的可执行性视为最终镜像契约，必要时补 `/usr/local/lib/docker/cli-plugins/docker-compose` 兼容入口。
+- 在文档中明确：推荐 `GITLAB_TOKEN`，自建实例补 `GITLAB_HOST`，`GLAB_TOKEN` 仅作兼容说明。
+- 在 CI 和本地验证命令中都执行 `docker --version`、`docker compose version`、`glab --version`。
+
+---
+
 ## Runner 可用性结果契约
 
 对于组合持久化元数据与实时探测结果的运行时 helper：
