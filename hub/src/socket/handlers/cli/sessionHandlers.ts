@@ -1,4 +1,5 @@
 import type { ClientToServerEvents } from '@zs/protocol'
+import { buildNewMessageUpdate, buildSessionUpdate } from '@zs/protocol'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import type { ModelMode, PermissionMode } from '@zs/protocol/types'
@@ -107,22 +108,19 @@ export function registerSessionHandlers(socket: CliSocketWithData, deps: Session
             }
         }
 
-        const update = {
+        const update = buildNewMessageUpdate({
             id: randomUUID(),
             seq: msg.seq,
             createdAt: Date.now(),
-            body: {
-                t: 'new-message' as const,
-                sid,
-                message: {
-                    id: msg.id,
-                    seq: msg.seq,
-                    createdAt: msg.createdAt,
-                    localId: msg.localId,
-                    content: msg.content
-                }
-            }
-        }
+            sessionId: sid,
+            message: {
+                id: msg.id,
+                seq: msg.seq,
+                createdAt: msg.createdAt,
+                localId: msg.localId,
+                content: msg.content,
+            },
+        })
         socket.to(`session:${sid}`).emit('update', update)
 
         onWebappEvent?.({
@@ -167,17 +165,14 @@ export function registerSessionHandlers(socket: CliSocketWithData, deps: Session
         }
 
         if (result.result === 'success') {
-            const update = {
+            const update = buildSessionUpdate({
                 id: randomUUID(),
                 seq: Date.now(),
                 createdAt: Date.now(),
-                body: {
-                    t: 'update-session' as const,
-                    sid,
-                    metadata: { version: result.version, value: metadata },
-                    agentState: null
-                }
-            }
+                sessionId: sid,
+                metadata: { version: result.version, value: metadata },
+                agentState: null,
+            })
             socket.to(`session:${sid}`).emit('update', update)
             onWebappEvent?.({ type: 'session-updated', sessionId: sid, data: { sid } })
         }
@@ -214,17 +209,14 @@ export function registerSessionHandlers(socket: CliSocketWithData, deps: Session
         }
 
         if (result.result === 'success') {
-            const update = {
+            const update = buildSessionUpdate({
                 id: randomUUID(),
                 seq: Date.now(),
                 createdAt: Date.now(),
-                body: {
-                    t: 'update-session' as const,
-                    sid,
-                    metadata: null,
-                    agentState: { version: result.version, value: agentState }
-                }
-            }
+                sessionId: sid,
+                metadata: null,
+                agentState: { version: result.version, value: agentState },
+            })
             socket.to(`session:${sid}`).emit('update', update)
             onWebappEvent?.({ type: 'session-updated', sessionId: sid, data: { sid } })
         }

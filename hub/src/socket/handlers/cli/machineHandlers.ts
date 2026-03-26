@@ -1,4 +1,5 @@
 import type { ClientToServerEvents } from '@zs/protocol'
+import { buildMachineUpdate } from '@zs/protocol'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import type { Store, StoredMachine } from '../../../store'
@@ -77,17 +78,14 @@ export function registerMachineHandlers(socket: CliSocketWithData, deps: Machine
         }
 
         if (result.result === 'success') {
-            const update = {
+            const update = buildMachineUpdate({
                 id: randomUUID(),
                 seq: Date.now(),
                 createdAt: Date.now(),
-                body: {
-                    t: 'update-machine' as const,
-                    machineId: id,
-                    metadata: { version: result.version, value: metadata },
-                    runnerState: null
-                }
-            }
+                machineId: id,
+                metadata: { version: result.version, value: metadata },
+                runnerState: null,
+            })
             socket.to(`machine:${id}`).emit('update', update)
             onWebappEvent?.({ type: 'machine-updated', machineId: id, data: { id } })
         }
@@ -122,17 +120,14 @@ export function registerMachineHandlers(socket: CliSocketWithData, deps: Machine
         }
 
         if (result.result === 'success') {
-            const update = {
+            const update = buildMachineUpdate({
                 id: randomUUID(),
                 seq: Date.now(),
                 createdAt: Date.now(),
-                body: {
-                    t: 'update-machine' as const,
-                    machineId: id,
-                    metadata: null,
-                    runnerState: { version: result.version, value: runnerState }
-                }
-            }
+                machineId: id,
+                metadata: null,
+                runnerState: { version: result.version, value: runnerState },
+            })
             socket.to(`machine:${id}`).emit('update', update)
             onWebappEvent?.({ type: 'machine-updated', machineId: id, data: { id } })
         }

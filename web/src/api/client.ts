@@ -31,28 +31,36 @@ type ApiClientOptions = {
 
 type ErrorPayload = {
     error?: unknown
+    reason?: unknown
+    trackedNamespace?: unknown
 }
 
-function parseErrorCode(bodyText: string): string | undefined {
+function parseErrorBody(bodyText: string): ErrorPayload | undefined {
     try {
-        const parsed = JSON.parse(bodyText) as ErrorPayload
-        return typeof parsed.error === 'string' ? parsed.error : undefined
+        return JSON.parse(bodyText) as ErrorPayload
     } catch {
         return undefined
     }
+}
+
+function parseErrorCode(bodyText: string): string | undefined {
+    const parsed = parseErrorBody(bodyText)
+    return typeof parsed?.error === 'string' ? parsed.error : undefined
 }
 
 export class ApiError extends Error {
     status: number
     code?: string
     body?: string
+    details?: ErrorPayload
 
-    constructor(message: string, status: number, code?: string, body?: string) {
+    constructor(message: string, status: number, code?: string, body?: string, details?: ErrorPayload) {
         super(message)
         this.name = 'ApiError'
         this.status = status
         this.code = code
         this.body = body
+        this.details = details
     }
 }
 
@@ -116,7 +124,9 @@ export class ApiClient {
 
         if (!res.ok) {
             const body = await res.text().catch(() => '')
-            throw new Error(`HTTP ${res.status} ${res.statusText}: ${body}`)
+            const details = body ? parseErrorBody(body) : undefined
+            const code = body ? parseErrorCode(body) : undefined
+            throw new ApiError(`HTTP ${res.status} ${res.statusText}: ${body}`, res.status, code, body || undefined, details)
         }
 
         return await res.json() as T
@@ -133,7 +143,7 @@ export class ApiClient {
             const body = await res.text().catch(() => '')
             const code = parseErrorCode(body)
             const detail = body ? `: ${body}` : ''
-            throw new ApiError(`Auth failed: HTTP ${res.status} ${res.statusText}${detail}`, res.status, code, body || undefined)
+            throw new ApiError(`Auth failed: HTTP ${res.status} ${res.statusText}${detail}`, res.status, code, body || undefined, body ? parseErrorBody(body) : undefined)
         }
 
         return await res.json() as AuthResponse

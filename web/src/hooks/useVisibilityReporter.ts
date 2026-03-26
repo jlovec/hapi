@@ -1,13 +1,32 @@
 import { useEffect, useRef } from 'react'
-import type { ApiClient } from '@/api/client'
+import type { ApiClient } from '../api/client'
+import { ApiError } from '../api/client'
 
 type VisibilityState = 'visible' | 'hidden'
+
+type VisibilityErrorReason = 'subscription_not_found' | 'namespace_mismatch' | null
 
 function getVisibilityState(): VisibilityState {
     if (typeof document === 'undefined') {
         return 'hidden'
     }
     return document.visibilityState === 'visible' ? 'visible' : 'hidden'
+}
+
+function parseVisibilityErrorReason(error: unknown): VisibilityErrorReason {
+    if (!(error instanceof ApiError) || error.status !== 404) {
+        return null
+    }
+
+    const reason = error.details?.reason
+    if (reason === 'subscription_not_found' || reason === 'namespace_mismatch') {
+        return reason
+    }
+    return null
+}
+
+export function shouldRetryVisibilityUpdate(error: unknown): boolean {
+    return parseVisibilityErrorReason(error) === null
 }
 
 export function useVisibilityReporter(options: {
@@ -88,6 +107,12 @@ export function useVisibilityReporter(options: {
                 }
                 hadError = true
                 console.error('Failed to update visibility:', error)
+                if (!shouldRetryVisibilityUpdate(error)) {
+                    clearRetry()
+                    pendingStateRef.current = null
+                    lastStateRef.current = null
+                    return
+                }
                 if (!retryTimerRef.current) {
                     retryTimerRef.current = setTimeout(() => {
                         retryTimerRef.current = null

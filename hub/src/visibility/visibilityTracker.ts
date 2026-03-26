@@ -1,5 +1,9 @@
 export type VisibilityState = 'visible' | 'hidden'
 
+export type SetVisibilityResult =
+    | { ok: true }
+    | { ok: false; reason: 'subscription_not_found' | 'namespace_mismatch'; trackedNamespace: string | null }
+
 export class VisibilityTracker {
     private readonly visibleConnections = new Map<string, Set<string>>()
     private readonly subscriptionToNamespace = new Map<string, string>()
@@ -12,19 +16,26 @@ export class VisibilityTracker {
         }
     }
 
-    setVisibility(subscriptionId: string, namespace: string, state: VisibilityState): boolean {
-        const trackedNamespace = this.subscriptionToNamespace.get(subscriptionId)
-        if (!trackedNamespace || trackedNamespace !== namespace) {
-            return false
+    setVisibilityDetailed(subscriptionId: string, namespace: string, state: VisibilityState): SetVisibilityResult {
+        const trackedNamespace = this.subscriptionToNamespace.get(subscriptionId) ?? null
+        if (!trackedNamespace) {
+            return { ok: false, reason: 'subscription_not_found', trackedNamespace: null }
+        }
+        if (trackedNamespace !== namespace) {
+            return { ok: false, reason: 'namespace_mismatch', trackedNamespace }
         }
 
         if (state === 'visible') {
             this.addVisibleConnection(trackedNamespace, subscriptionId)
-            return true
+            return { ok: true }
         }
 
         this.removeVisibleConnection(trackedNamespace, subscriptionId)
-        return true
+        return { ok: true }
+    }
+
+    setVisibility(subscriptionId: string, namespace: string, state: VisibilityState): boolean {
+        return this.setVisibilityDetailed(subscriptionId, namespace, state).ok
     }
 
     removeConnection(subscriptionId: string): void {

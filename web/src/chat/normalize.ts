@@ -1,3 +1,4 @@
+import { parseCanonicalUserMessage } from '@zs/protocol/chat-protocol-user-message'
 import { unwrapRoleWrappedRecordEnvelope } from '@zs/protocol/messages'
 import { safeStringify } from '@zs/protocol'
 import type { DecryptedMessage } from '@/types/api'
@@ -6,6 +7,25 @@ import { isCodexContent, isSkippableAgentContent, normalizeAgentRecord } from '@
 import { normalizeUserRecord } from '@/chat/normalizeUser'
 
 export function normalizeDecryptedMessage(message: DecryptedMessage): NormalizedMessage | null {
+    const canonicalUserMessage = parseCanonicalUserMessage(message.content)
+    if (canonicalUserMessage) {
+        return {
+            id: message.id,
+            localId: message.localId,
+            createdAt: message.createdAt,
+            role: 'user',
+            isSidechain: false,
+            content: {
+                type: 'text',
+                text: canonicalUserMessage.content.text,
+                attachments: canonicalUserMessage.content.attachments,
+            },
+            meta: canonicalUserMessage.meta,
+            status: message.status,
+            originalText: message.originalText,
+        }
+    }
+
     const record = unwrapRoleWrappedRecordEnvelope(message.content)
     if (!record) {
         return {

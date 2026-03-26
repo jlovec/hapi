@@ -196,7 +196,7 @@ const reduced = reduceChatBlocks(normalizedMessages, props.session.agentState)
 - `refreshMessageWindow(...)` / `hydrateResumedMessageWindow(...)` 这类“窗口动作语义”应收敛在 store action 中，业务层不要散落直接调用底层 fetch helper。
 - `pendingCount` 如果面向用户提示（例如“新消息数” badge），它属于**展示派生值**，不属于 store 的原始状态字段语义。
 - `normalizeDecryptedMessage(...)`、`reduceChatBlocks(...)`、`reconcileChatBlocks(...)` 属于展示层，不得回流到 store 决定消息事实。
-- `SessionChat` 作为唯一主容器时，`SessionChatPanel` 只保留兼容导出，不再维护第二套聊天展示实现。
+- `SessionChat` 作为唯一主容器时，`SessionChatPanel` 的兼容导出应视为临时迁移产物；新代码应直接依赖 `@/components/SessionChat`，兼容别名完成清理后不得再恢复第二入口。
 - 会话恢复（resume）应通过单一语义入口完成“seed 旧窗口 + 用服务端事实刷新新窗口”，避免页面层自己拼装多个步骤。
 
 ### 推荐检查问题
@@ -204,6 +204,16 @@ const reduced = reduceChatBlocks(normalizedMessages, props.session.agentState)
 - 当前新增的是 **store action** 还是 **UI 派生逻辑**？如果两者同时改同一语义，通常说明边界又混了。
 - 某个字段是“原始窗口事实”（例如 pending 原始数量），还是“给用户展示的结果”（例如可见 pending 数）？
 - 如果 session 切换后 UI 泄漏旧消息，应该先查 `message-window-store`、`useMessages` 还是 `SessionChat`？答案应当明确且唯一。
+
+### SSE visibility 上报契约
+
+当页面可见性依赖独立的 `POST /api/visibility` 上报，而真实订阅身份来自 SSE 握手时，必须遵守以下契约：
+
+- `subscriptionId` 只能来自 SSE `connection-changed` 事件，不得本地构造或复用旧值。
+- SSE 重连 / session 切换时，必须先让旧 `subscriptionId` 失效，再启动新一轮 visibility 上报。
+- 对旧 `subscriptionId` 的 404 响应应视为**订阅已失效**，优先停止旧重试链，而不是无限按网络错误重试。
+- visibility reporter 只负责“把当前页面状态上报给当前有效 subscription”，不得偷偷承担连接恢复或 subscription 修复语义。
+- 回归测试至少覆盖：首次连接、页面刷新后重连、session 切换后三种场景。
 
 ---
 

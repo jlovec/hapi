@@ -8,6 +8,7 @@
     "exports": {
         ".": "./src/index.ts",
         "./messages": "./src/messages.ts",
+        "./chat-protocol-user-message": "./src/chat-protocol-user-message.ts",
         "./modes": "./src/modes.ts",
         "./schemas": "./src/schemas.ts",
         "./types": "./src/types.ts"

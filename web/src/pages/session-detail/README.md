@@ -13,7 +13,7 @@
 
 - `entities/session` - SessionHeader 组件
 - `entities/git` - Git 状态数据
-- `components/SessionChat` - 聊天组件（待迁移到 widgets）
+- `components/SessionChat` - 聊天主容器
 
 ## 路由
 

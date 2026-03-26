@@ -1,3 +1,4 @@
+import { parseCanonicalUserMessage } from '@zs/protocol/chat-protocol-user-message'
 import type { InfiniteData } from '@tanstack/react-query'
 import type { DecryptedMessage, MessagesResponse } from '@/types/api'
 
@@ -13,11 +14,7 @@ export function makeClientSideId(prefix: string): string {
 }
 
 export function isUserMessage(msg: DecryptedMessage): boolean {
-    const content = msg.content
-    if (content && typeof content === 'object' && 'role' in content) {
-        return (content as { role: string }).role === 'user'
-    }
-    return false
+    return parseCanonicalUserMessage(msg.content) !== null
 }
 
 function isOptimisticMessage(msg: DecryptedMessage): boolean {

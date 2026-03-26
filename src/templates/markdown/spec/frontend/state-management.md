@@ -196,7 +196,7 @@ const reduced = reduceChatBlocks(normalizedMessages, props.session.agentState)
 - `refreshMessageWindow(...)` / `hydrateResumedMessageWindow(...)` 这类“窗口动作语义”应收敛在 store action 中，业务层不要散落直接调用底层 fetch helper。
 - `pendingCount` 如果面向用户提示（例如“新消息数” badge），它属于**展示派生值**，不属于 store 的原始状态字段语义。
 - `normalizeDecryptedMessage(...)`、`reduceChatBlocks(...)`、`reconcileChatBlocks(...)` 属于展示层，不得回流到 store 决定消息事实。
-- `SessionChat` 作为唯一主容器时，`SessionChatPanel` 只保留兼容导出，不再维护第二套聊天展示实现。
+- `SessionChat` 作为唯一主容器时，`SessionChatPanel` 的兼容导出应视为临时迁移产物；新代码应直接依赖 `@/components/SessionChat`，兼容别名完成清理后不得再恢复第二入口。
 - 会话恢复（resume）应通过单一语义入口完成“seed 旧窗口 + 用服务端事实刷新新窗口”，避免页面层自己拼装多个步骤。
 
 ### 推荐检查问题
