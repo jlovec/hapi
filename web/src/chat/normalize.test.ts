@@ -135,6 +135,58 @@ describe('normalizeDecryptedMessage', () => {
             originalText: undefined,
         })
     })
+    it('falls back to safe string output for malformed canonical attachments', () => {
+        const message: DecryptedMessage = {
+            id: 'msg-bad-canonical-attachments',
+            seq: 4,
+            localId: null,
+            createdAt: 456,
+            content: {
+                role: 'user',
+                content: {
+                    type: 'text',
+                    text: 'hello',
+                    attachments: [{
+                        id: 'att-1',
+                        filename: 'bad.txt',
+                        mimeType: 42,
+                        size: 1,
+                        path: '/tmp/bad.txt',
+                    }],
+                },
+                meta: {
+                    sentFrom: 'webapp',
+                },
+            },
+        }
+
+        expect(normalizeDecryptedMessage(message)).toEqual({
+            id: 'msg-bad-canonical-attachments',
+            localId: null,
+            createdAt: 456,
+            role: 'user',
+            isSidechain: false,
+            content: {
+                type: 'text',
+                text: JSON.stringify({
+                    type: 'text',
+                    text: 'hello',
+                    attachments: [{
+                        id: 'att-1',
+                        filename: 'bad.txt',
+                        mimeType: 42,
+                        size: 1,
+                        path: '/tmp/bad.txt',
+                    }],
+                }, null, 2),
+            },
+            meta: {
+                sentFrom: 'webapp',
+            },
+            status: undefined,
+            originalText: undefined,
+        })
+    })
     it('falls back to legacy user normalization', () => {
         const message: DecryptedMessage = {
             id: 'msg-2',

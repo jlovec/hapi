@@ -80,6 +80,26 @@ describe('chat-protocol-user-message', () => {
         })
     })
 
+    it('returns null for malformed attachment items', () => {
+        expect(parseCanonicalUserMessage({
+            role: 'user',
+            content: {
+                type: 'text',
+                text: 'hello',
+                attachments: [{
+                    id: 'att-1',
+                    filename: 'bad.txt',
+                    mimeType: 42,
+                    size: 1,
+                    path: '/tmp/bad.txt',
+                }],
+            },
+            meta: {
+                sentFrom: 'webapp',
+            },
+        })).toBeNull()
+    })
+
     it('returns null for non canonical user payload', () => {
         expect(parseCanonicalUserMessage({
             role: 'user',

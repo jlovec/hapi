@@ -2,6 +2,17 @@ import type { AttachmentMetadata } from './types'
 import { isObject } from './utils'
 import { unwrapRoleWrappedRecordEnvelope } from './messages'
 
+function isAttachmentMetadata(value: unknown): value is AttachmentMetadata {
+    if (!isObject(value)) return false
+    if (typeof value.id !== 'string') return false
+    if (typeof value.filename !== 'string') return false
+    if (typeof value.mimeType !== 'string') return false
+    if (typeof value.size !== 'number' || !Number.isFinite(value.size)) return false
+    if (typeof value.path !== 'string') return false
+    if ('previewUrl' in value && value.previewUrl !== undefined && typeof value.previewUrl !== 'string') return false
+    return true
+}
+
 type CanonicalUserMessageMeta = {
     sentFrom?: string
 }
@@ -55,7 +66,10 @@ function isCanonicalUserMessageTextContent(value: unknown): value is CanonicalUs
     if (!isObject(value)) return false
     if (value.type !== 'text') return false
     if (typeof value.text !== 'string') return false
-    if ('attachments' in value && value.attachments !== undefined && !Array.isArray(value.attachments)) return false
+    if ('attachments' in value && value.attachments !== undefined) {
+        if (!Array.isArray(value.attachments)) return false
+        if (!value.attachments.every(isAttachmentMetadata)) return false
+    }
     return true
 }
 
