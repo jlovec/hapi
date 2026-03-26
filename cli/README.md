@@ -120,7 +120,7 @@
 ```bash
 bun install
 bun run build:cli
-bun run build:cli:exe
+cd cli && bun run build:exe
 ```
 
 若需构建同时内嵌 web app 的一体化二进制：

@@ -162,6 +162,8 @@ bun run build      # 构建生产版本
 - 当某个镜像独有额外构建阶段（例如前端 `vite build`、静态站点打包、大型资源编译）时，要把它视为发布路径上的独立风险点；不要因为同矩阵里的另一个镜像能完成多架构推送，就默认该镜像也没问题。
 - 如果多架构发布卡在单个镜像，而同工作流中的其它镜像已完成，应优先怀疑该镜像在某个目标架构上的构建阶段，而不是先怀疑 GHCR 登录或 workflow 框架本身。
 - 对于耗时长的多架构步骤，要增加可观测性（如拆分按架构构建、输出每架构进度，或先产出单架构 smoke 结果），避免 job 长时间停留在 `Build and push` 却无法判断是“慢”还是“卡住”。
+- **当删除或重命名根脚本 / 校验命令（例如 `package.json` scripts）时，必须同步审计 workflow、复合 action 与文档里的所有调用点。不要只修改命令定义本身；若 `.github/workflows/**` 仍引用旧命令，会在 CI 中以 `Script not found` 这类低层错误失败。**
+- **如果某个 smoke job 依赖 `bun run <script>` 形式的预检命令，要把该脚本名视为 CI 契约；删除它之前，必须先决定是同步修改 workflow，还是保留兼容脚本别名。**
 
 ## Runner 工具链可用性契约
 
@@ -1076,7 +1078,91 @@ deferred items: optional cleanup / broader UX / unrelated hardening
 
 ---
 
-## 场景： 高风险修改前的历史提交检查契约（相关 Commit 回放 + 冲突语义保留）
+## 场景：脚本契约漂移检查（Workflow / Docs / README 引用一致性）
+
+### 1. 范围 / 触发条件
+- 触发条件：修改、删除、重命名任何仓库脚本、校验入口、CLI 命令示例，尤其涉及：
+  - 根 / workspace `package.json`
+  - `.github/workflows/**`
+  - `.github/actions/**`
+  - `docs/**`
+  - `README.md` / 子目录 `README.md`
+- 为什么需要 code-spec 深度：
+  - 这里真正要保护的不是某一段脚本文本，而是“脚本定义 -> workflow 调用 -> 文档示例”的同一条命令契约链。
+  - 其中任何一个调用方没同步，CI、安装指引或 README 都会先炸。
+
+### 2. 契约
+- Caller-graph contract：
+  - 脚本改名或删除时，必须把 `package.json`、workflow、docs、README 当成同一个 caller graph 一起审计。
+- Compatibility contract：
+  - 如果 workflow 仍依赖旧脚本名，要么同步更新 workflow，要么保留兼容别名；不能假设“本地入口简化后调用方会自动收敛”。
+- Syntax contract：
+  - 文档命令示例必须使用当前工具真实支持的调用形式。
+- Scope contract：
+  - 根脚本定义根入口；workspace 脚本只应在明确 `--cwd` 或进入子目录后引用。
+- Guide handoff：
+  - 具体排查清单与文档命令漂移反例，统一参考 `guides/ci-cd-thinking-guide.md`，不要在本文件重复展开教程。
+
+### 3. 校验与错误矩阵
+- workflow 调用的脚本在 `package.json` 不存在 -> CI 在最早步骤直接失败，后续 smoke / publish 全部被短路。
+- 文档命令形式错误或脚本名写错 -> 用户按文档执行即失败。
+- 根脚本与 workspace 脚本混淆 -> README 看似合理，但实际没有对应入口。
+
+### 4. 必需测试（含断言点）
+- Script assertions:
+  - workflow 中出现的脚本名必须都能在相应 `package.json` 找到。
+  - 文档中的构建命令必须能映射到真实脚本入口。
+- Review assertions：
+  - reviewer 必须追问：
+    - “这个脚本名还被哪些 workflow / docs / README 调用？”
+    - “命令形式是当前工具真实支持的吗？”
+
+### 5. 错误示例 vs 正确示例
+#### 错误示例
+> 错误不在 workflow 命令形式本身，而在“调用方存在、脚本定义缺失”，同时文档也保留了失效命令。
+
+```yaml
+- name: Validate env
+  run: bun run docker:check
+```
+
+```json
+{
+  "scripts": {
+    "start:local-test-env": "bun run scripts/start-local-test-env.ts"
+  }
+}
+```
+
+```md
+bun build:single-exe
+bun run build:cli:exe
+```
+
+#### 正确示例
+```yaml
+- name: Validate env
+  run: bun run docker:check
+```
+
+```json
+{
+  "scripts": {
+    "docker:check": "bun run scripts/docker-check.ts",
+    "start:local-test-env": "bun run scripts/start-local-test-env.ts"
+  }
+}
+```
+
+```md
+bun run build:single-exe
+bun run build:cli
+```
+
+---
+
+## 场景：高风险修改前的历史提交检查契约（相关 Commit 回放 + 冲突语义保留）
+
 
 ### 1. 范围 / 触发条件
 - 触发条件：准备修改以下高风险区域之一：

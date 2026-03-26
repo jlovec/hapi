@@ -122,6 +122,39 @@ runs:
 
 **CI/CD 配置应该像代码一样被测试和验证。**
 
+#### 变更传播检查（重要）
+
+当你删除或重命名仓库脚本、校验命令、入口文件时：
+
+- [ ] 搜索 `.github/workflows/**`、`.github/actions/**`、`docs/**` 中是否仍引用旧名字
+- [ ] 搜索 `package.json` / 各 workspace `package.json` 中是否仍存在脚本别名依赖
+- [ ] 如果 workflow 仍调用旧命令，要么同步更新 workflow，要么保留兼容别名
+- [ ] 不要把“本地入口已简化”当成“CI 调用点也已自动收敛”
+
+#### 反例：2026-03 Docker compose smoke 回归
+
+- `package.json` 中的 `docker:check` 在本地入口简化时被删除；
+- `.github/workflows/docker-images.yml` 的 `compose-smoke` job 仍执行 `bun run docker:check`；
+- 结果是镜像已成功构建，但 `Validate env` 步骤直接报 `Script not found "docker:check"`，后续 smoke test 根本没有执行。
+
+**教训**：这类问题不是实现逻辑错误，而是 **命令契约变更后未完成引用传播**。只改脚本定义、不审计 workflow / 文档 / 其他调用方，最终会把问题留到 CI 才暴露。
+
+#### 额外检查：脚本契约与文档命令漂移
+
+当 workflow / 文档 / README 引用仓库脚本时，除了检查“脚本是否还存在”，还要检查“命令形式是否仍然有效”：
+
+- [ ] `bun run <script>` / `npm run <script>` / `pnpm run <script>` 是否与当前 `package.json` 一致
+- [ ] 文档中的直接命令是否符合真实 CLI 语法（例如 Bun 命名脚本通常应写成 `bun run <script>`）
+- [ ] 根脚本与 workspace 脚本是否被混淆引用
+- [ ] 修改脚本名后，README / 安装文档 / workflow 示例是否同步更新
+
+#### 反例：2026-03 文档命令漂移
+
+- `docs/guide/installation.md` 曾写成 `bun build:single-exe`，但仓库实际脚本调用形式是 `bun run build:single-exe`；
+- `cli/README.md` 曾引用不存在的 `bun run build:cli:exe`，而根 `package.json` 并没有该脚本。
+
+**教训**：CI 暴露的是最早炸掉的调用点，但同一类问题往往已经同时污染了文档和 README。排查时必须把 workflow、docs、README 当成同一个“命令契约面”一起审计。
+
 #### 实践
 
 1. **Workflow 配置验证**

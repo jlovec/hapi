@@ -91,7 +91,7 @@ brew install jlovec1024/tap/zhushen
 
 ## 其他安装方式
 
-> 说明：源码构建与单文件可执行包的构建链路近期已加强兼容性，尤其是编译产物中的终端依赖加载方式更稳定。若你使用预编译二进制或 `bun build:single-exe` 构建版本，建议优先使用最新发布版本。
+> 说明：源码构建与单文件可执行包的构建链路近期已加强兼容性，尤其是编译产物中的终端依赖加载方式更稳定。若你使用预编译二进制或 `bun run build:single-exe` 构建版本，建议优先使用最新发布版本。
 
 <details>
 <summary>npx（免安装）</summary>
@@ -122,7 +122,7 @@ sudo mv ./zs /usr/local/bin/
 git clone https://github.com/jlovec1024/zhushen.git
 cd zhushen
 bun install
-bun build:single-exe
+bun run build:single-exe
 
 ./cli/dist/zs
 ```

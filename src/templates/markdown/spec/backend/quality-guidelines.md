@@ -164,6 +164,8 @@ For Docker / runner images that execute Bun-based CLIs:
 - When an image has extra build-only stages (for example frontend `vite build`, static site packaging, or heavy asset compilation), treat that stage as an independent release-path risk instead of assuming another image in the same matrix proves the workflow is healthy.
 - If a multi-arch publish hangs on only one image while sibling matrix jobs finish, suspect that image's architecture-specific build path first rather than GHCR login or generic workflow wiring.
 - Add observability to long-running multi-arch steps (for example per-arch split builds, explicit progress output, or a pre-publish single-arch smoke result) so a job stuck at `Build and push` can be distinguished from one that is merely slow.
+- **When deleting or renaming root scripts / validation commands (for example `package.json` scripts), you must audit all call sites in workflows, composite actions, and docs at the same time. Do not change only the command definition; if `.github/workflows/**` still references the old command, CI will fail with low-level errors such as `Script not found`.**
+- **If a smoke job depends on a preflight command in the form `bun run <script>`, treat that script name as part of the CI contract. Before removing it, decide whether to update the workflow in the same change or keep a compatibility alias.**
 
 ## Runner Availability Result Contracts
 
@@ -1010,6 +1012,89 @@ primary contract: "candidate artifact must be validated before publish; degraded
 introduced by: <commit A>, reintroduced by merge/review in <commit B>
 next patch role: corrective rollback of <commit B>
 deferred items: optional cleanup / broader UX / unrelated hardening
+```
+
+---
+
+## Scenario: Script Contract Drift Checks (Workflow / Docs / README Reference Consistency)
+
+### 1. Scope / Trigger
+- Trigger: modifying, deleting, or renaming any repository script, validation entrypoint, or documented CLI example, especially across:
+  - root / workspace `package.json`
+  - `.github/workflows/**`
+  - `.github/actions/**`
+  - `docs/**`
+  - `README.md` / nested `README.md`
+- Why code-spec depth is required:
+  - the thing to protect is not one script string, but the same command contract chain across script definitions, workflow callers, and documented examples.
+  - if any caller is left behind, CI, install docs, or README paths fail first.
+
+### 2. Contracts
+- Caller-graph contract:
+  - when a script is renamed or removed, audit `package.json`, workflows, docs, and README together as one caller graph.
+- Compatibility contract:
+  - if a workflow still depends on the old script name, either update the workflow in the same change or keep a compatibility alias.
+- Syntax contract:
+  - documentation examples MUST use the exact command form the current toolchain supports.
+- Scope contract:
+  - root scripts define root entrypoints; workspace scripts must only be referenced with explicit `--cwd` or after changing directory.
+- Guide handoff:
+  - the detailed checklist and documentation-drift examples belong in `guides/ci-cd-thinking-guide.md`; do not duplicate the full tutorial here.
+
+### 3. Validation & Error Matrix
+- workflow calls a script missing from `package.json` -> CI fails at the earliest step and blocks later smoke/publish stages.
+- documentation command form or script name is wrong -> users fail immediately when following the docs.
+- root and workspace script surfaces are confused -> README looks plausible, but there is no real entrypoint.
+
+### 4. Tests Required (with assertion points)
+- Script assertions:
+  - every script name used by workflows must exist in the corresponding `package.json`.
+  - documented build commands must map to a real script entrypoint.
+- Review assertions:
+  - reviewers must ask:
+    - "where else is this script name referenced across workflow / docs / README?"
+    - "does this command form match the real tool syntax?"
+
+### 5. Wrong vs Correct
+#### Wrong
+> The bug is not the workflow command form itself. The bug is that the caller still exists while the script definition is gone, and the docs also keep stale commands.
+
+```yaml
+- name: Validate env
+  run: bun run docker:check
+```
+
+```json
+{
+  "scripts": {
+    "start:local-test-env": "bun run scripts/start-local-test-env.ts"
+  }
+}
+```
+
+```md
+bun build:single-exe
+bun run build:cli:exe
+```
+
+#### Correct
+```yaml
+- name: Validate env
+  run: bun run docker:check
+```
+
+```json
+{
+  "scripts": {
+    "docker:check": "bun run scripts/docker-check.ts",
+    "start:local-test-env": "bun run scripts/start-local-test-env.ts"
+  }
+}
+```
+
+```md
+bun run build:single-exe
+bun run build:cli
 ```
 
 ---
