@@ -273,8 +273,8 @@ export default function Home() {
                   <h3 className="font-bold">{t('installation.npm.step1')}</h3>
                 </div>
                 <div className="bg-slate-950 text-slate-50 p-4 rounded-xl font-mono text-sm flex justify-between items-center border-2 border-slate-800">
-                  <code>npx @zhushen/cli hub</code>
-                  <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-slate-800" onClick={() => copyToClipboard("npx @zhushen/cli hub", "hub")}>
+                  <code>npx @jlovec/zhushen hub</code>
+                  <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-slate-800" onClick={() => copyToClipboard("npx @jlovec/zhushen hub", "hub")}>
                     {copied === "hub" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
@@ -285,8 +285,8 @@ export default function Home() {
                   <h3 className="font-bold">{t('installation.npm.step2')}</h3>
                 </div>
                 <div className="bg-slate-950 text-slate-50 p-4 rounded-xl font-mono text-sm flex justify-between items-center border-2 border-slate-800">
-                  <code>npx @zhushen/cli</code>
-                  <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-slate-800" onClick={() => copyToClipboard("npx @zhushen/cli", "session")}>
+                  <code>npx @jlovec/zhushen</code>
+                  <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-slate-800" onClick={() => copyToClipboard("npx @jlovec/zhushen", "session")}>
                     {copied === "session" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>

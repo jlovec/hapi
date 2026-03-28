@@ -17,7 +17,7 @@ npx @jlovec/zhushen hub     # 启动 hub（本地访问）
 npx @jlovec/zhushen         # 运行 claude code
 ```
 
-终端会显示本地访问地址，可在浏览器或手机内网访问。
+终端会显示本机访问地址；若需手机或局域网设备访问，请显式对外监听，例如：`ZS_LISTEN_HOST=0.0.0.0 npx @jlovec/zhushen hub`。
 
 ## Docker (zs-hub + zs-runner)
 
