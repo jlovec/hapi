@@ -215,7 +215,7 @@ describe('SessionList action touch behavior', () => {
             createSession({ id: 'inactive', active: false, thinking: false, metadata: { path: '/tmp/project', flavor: 'claude' } })
         ]
 
-        const { container } = render(
+        render(
             <SessionList
                 sessions={sessions}
                 onSelect={vi.fn()}
@@ -227,14 +227,17 @@ describe('SessionList action touch behavior', () => {
             />
         )
 
-        const dots = container.querySelectorAll('.rounded-full[class*="bg-"]')
-        expect(dots.length).toBeGreaterThanOrEqual(3)
+        const getStatusDotClassName = (sessionId: string) => {
+            const sessionTitle = screen.getByText(`title-${sessionId}`)
+            const row = sessionTitle.closest('.session-list-item')
+            expect(row).not.toBeNull()
+            const dot = row?.querySelector('.rounded-full[class*="bg-"]')
+            expect(dot).not.toBeNull()
+            return dot?.className ?? ''
+        }
 
-        // active + thinking: blue (#007AFF)
-        expect(dots[0].className).toContain('bg-[#007AFF]')
-        // active + not thinking: success green
-        expect(dots[1].className).toContain('bg-[var(--app-badge-success-text)]')
-        // inactive: hint gray
-        expect(dots[2].className).toContain('bg-[var(--app-hint)]')
+        expect(getStatusDotClassName('active-thinking')).toContain('bg-[#007AFF]')
+        expect(getStatusDotClassName('active-idle')).toContain('bg-[var(--app-badge-success-text)]')
+        expect(getStatusDotClassName('inactive')).toContain('bg-[var(--app-hint)]')
     })
 })
